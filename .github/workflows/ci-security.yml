@@ -1,0 +1,101 @@
+name: "CI & Security"
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    - cron: '0 2 * * 1'   # Еженедельный прогон: понедельник 02:00 UTC
+
+permissions:
+  contents: read
+  security-events: write   # CodeQL публикует SARIF-отчёты в Security tab
+
+jobs:
+  # ─────────────────────────────────────────────────────────────
+  # 1. Secret Scanning — защита от утечки ключей в git-историю
+  # ─────────────────────────────────────────────────────────────
+  secret-scan:
+    name: Secret Scanning (gitleaks)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0   # полная история — gitleaks сканирует все коммиты
+
+      - uses: gitleaks/gitleaks-action@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+
+  # ─────────────────────────────────────────────────────────────
+  # 2. Build & Test — typecheck, сборка, тесты, линт, аудит
+  # ─────────────────────────────────────────────────────────────
+  build-and-test:
+    name: Build & Test (Node 22)
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        node: [22]
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+
+      # Версия pnpm берётся из packageManager корневого package.json
+      # (single source of truth — pnpm@10.11.1)
+      - uses: pnpm/action-setup@v4
+
+      - name: Get pnpm store directory
+        id: pnpm-cache
+        shell: bash
+        run: echo "STORE_PATH=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+
+      # Кэш хранилища pnpm: ключ по хешу lockfile
+      - uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
+          key: pnpm-store-${{ runner.os }}-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: pnpm-store-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # СБОРКА ПЕРЕД typecheck: workspace-зависимости (@t2em/protocol)
+      # резолвятся через dist/index.d.ts — без сборки protocol
+      # typecheck cli/mcp-server падает с "Cannot find module '@t2em/protocol'"
+      - name: Build packages
+        run: pnpm -r build
+
+      - name: Typecheck
+        run: pnpm -r typecheck
+
+      - name: Test
+        run: pnpm -r test
+
+      - name: Lint
+        run: pnpm -r lint
+
+      # Блокирующий гейт: high/critical в prod-дереве не проходят.
+      # Dev-дерево информационное — не поставляется потребителям.
+      - name: Dependency audit
+        run: pnpm audit --prod --audit-level high
+
+  # ─────────────────────────────────────────────────────────────
+  # 3. CodeQL SAST — глубокий статический анализ
+  # ─────────────────────────────────────────────────────────────
+  codeql:
+    name: CodeQL SAST
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: github/codeql-action/init@v4
+        with:
+          languages: javascript-typescript
+          queries: security-extended
+
+      - uses: github/codeql-action/analyze@v4

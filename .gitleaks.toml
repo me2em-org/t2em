@@ -1,0 +1,26 @@
+# t2em gitleaks configuration — extends the default rule set.
+# Allowlists below cover synthetic test fixtures only; any real secret
+# anywhere else fails the build.
+
+[extend]
+# use default gitleaks rules
+
+[[rules]]
+id = "allow-test-fixtures"
+description = "Suppress known synthetic vectors in test directories"
+regex = '''(?:abandon( abandon){11}|0x0b{10,}|deadbeef|new Uint8Array\(\d+\)\.fill\(0x[0-9a-fA-F]{2}\))'''
+
+[rules.allowlist]
+description = "Deterministic synthetic test material"
+regexes = [
+  '''abandon( abandon){11}''',
+  '''(?i)0x0b{10,}''',
+  '''(?i)deadbeef''',
+]
+paths = [
+  '''packages/protocol/test/.*''',
+  '''packages/relay-server/test/.*''',
+  '''packages/cli/test/.*''',
+  '''packages/mcp-server/test/.*''',
+  '''packages/web-ui/test/.*''',
+]

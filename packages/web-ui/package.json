@@ -1,0 +1,38 @@
+{
+  "name": "@t2em/web-ui",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Embedded Web UI of t2em.com: vanilla-JS browser-side decryption for Mode B (no framework, ТЗ §3.2)",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit"
+  },
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=22.6.0"
+  },
+  "dependencies": {
+    "@t2em/protocol": "workspace:^"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.6.0",
+    "vitest": "^5.1.0"
+  }
+}
