@@ -73,3 +73,13 @@ export function assertSupportedVersion(v: number): void {
     throw new Error(`UNSUPPORTED_VERSION: envelope.v=${v}, expected ${T2EM_PROTOCOL_VERSION}`);
   }
 }
+
+// ---------------------------------------------------------------------------
+// Phase 1A — Mode B crypto core, validation, shared primitives (ТЗ §4.3–§4.5)
+// ---------------------------------------------------------------------------
+
+export * from './base64url.js';
+export * from './hash.js';
+export * from './fingerprint.js';
+export * from './envelope.js';
+export * from './mode-b.js';
