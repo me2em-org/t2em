@@ -29,6 +29,7 @@
   },
   "dependencies": {
     "@hono/node-server": "^2.1.0",
+    "@me2em/crypto": "1.1.0-rc.2",
     "@t2em/protocol": "workspace:^",
     "@upstash/redis": "^1.41.0",
     "hono": "^4.13.0"

@@ -37,6 +37,31 @@ export interface RelayStorage {
   getDeleteTokenHash(id: DropId): Promise<string | null>;
 
   /**
+   * Mark the drop as non-burning (`burn_after_reading: false`, ТЗ §5.2).
+   *
+   * §6.1 refinement: the marker lives under `burn:{id}` and is written
+   * ONLY for non-burn drops, so the default (burn) read path stays a
+   * single atomic GETDEL (§6.4) with no extra round-trip. A failed
+   * marker write therefore fails safe: the drop burns on first read.
+   */
+  putBurnMarker(id: DropId, ttlSeconds: number): Promise<void>;
+
+  /** True when the drop was created with `burn_after_reading: false`. */
+  getBurnMarker(id: DropId): Promise<boolean>;
+
+  /**
+   * Remove every key of the drop at once — `drop:{id}`, `delete:{id}`,
+   * `burn:{id}` (ТЗ §5.4 early destruction). Missing keys are ignored.
+   */
+  destroyDrop(id: DropId): Promise<void>;
+
+  /**
+   * Liveness of the backing store for `GET /health` (ТЗ §5.6) —
+   * Redis `PING`. Must never throw: return `false` on any failure.
+   */
+  ping(): Promise<boolean>;
+
+  /**
    * Increment the per-minute rate-limit counter for an already-hashed
    * bucket key (`ratelimit:{ip_hash}:{minute}`) and return the new
    * counter value. First increment sets EX 60 (ТЗ §6.1).

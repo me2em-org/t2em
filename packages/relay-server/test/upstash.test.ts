@@ -90,6 +90,32 @@ describe('UpstashRelayStorage (REST wire format, ТЗ §6.1)', () => {
     ]);
   });
 
+  it('burn marker: SET burn:{id} for non-burn drops, GET to detect (§5.2)', async () => {
+    await storage().putBurnMarker('abc', 300);
+    expect(calls[0].body).toEqual([['set', 'burn:abc', '0', 'ex', 300]]);
+
+    cannedResults = ['0'];
+    expect(await storage().getBurnMarker('abc')).toBe(true);
+    expect(calls[1].body).toEqual([['get', 'burn:abc']]);
+
+    cannedResults = [null];
+    expect(await storage().getBurnMarker('missing')).toBe(false);
+  });
+
+  it('destroyDrop DELs all drop keys in one command (§5.4)', async () => {
+    await storage().destroyDrop('abc');
+    expect(calls[0].body).toEqual([['del', 'drop:abc', 'delete:abc', 'burn:abc']]);
+  });
+
+  it('ping maps PONG → true and any failure → false (§5.6)', async () => {
+    cannedResults = ['PONG'];
+    expect(await storage().ping()).toBe(true);
+    expect(calls[0].body).toEqual([['ping']]);
+
+    cannedResults = [null];
+    expect(await storage().ping()).toBe(false);
+  });
+
   it('rejects non-https endpoints and empty tokens (TLS 1.3, §8.6)', () => {
     expect(() => new UpstashRelayStorage({ url: 'http://x.upstash.io', token: 't' })).toThrow(/https/);
     expect(() => new UpstashRelayStorage({ url: 'https://x.upstash.io', token: '' })).toThrow(/token/);

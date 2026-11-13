@@ -64,6 +64,31 @@ export class UpstashRelayStorage implements RelayStorage {
     return typeof v === 'string' ? v : null;
   }
 
+  async putBurnMarker(id: DropId, ttlSeconds: number): Promise<void> {
+    // Marker of a NON-burn drop (§5.2 burn_after_reading=false) — its
+    // absence is what keeps the default read path a single GETDEL.
+    await this.redis.set(`burn:${id}`, '0', { ex: ttlSeconds });
+  }
+
+  async getBurnMarker(id: DropId): Promise<boolean> {
+    const v = await this.redis.get<string>(`burn:${id}`);
+    return typeof v === 'string';
+  }
+
+  async destroyDrop(id: DropId): Promise<void> {
+    // One DEL for all drop keys; missing keys are ignored by Redis.
+    await this.redis.del(`drop:${id}`, `delete:${id}`, `burn:${id}`);
+  }
+
+  async ping(): Promise<boolean> {
+    try {
+      const reply = await this.redis.ping();
+      return String(reply).toUpperCase() === 'PONG';
+    } catch {
+      return false; // §5.6: health must never throw
+    }
+  }
+
   async hitRateLimit(bucketKey: string): Promise<number> {
     // Single-RTT pipeline; EXPIRE refreshes within the per-minute
     // bucket, which only extends a past minute's counter lifetime —
