@@ -40,7 +40,8 @@ check(create.status === 201, `POST /api/v1/drop -> 201 (got ${create.status})`);
 const created = create.status === 201 ? await create.json() : null;
 if (!created) { console.log('FATAL: create failed, дальше тест невозможен'); process.exit(1); }
 check(typeof created.id === 'string' && typeof created.delete_token === 'string', 'в ответе есть id и delete_token');
-check(created.url === `${BASE}/s/${created.id}`, `share url канонический: ${created.url}`);
+check(created.url === `${BASE}/s/${created.id}` || created.url === `https://t2em.com/s/${created.id}`,
+  `share url канонический: ${created.url} (T2EM_PUBLIC_ORIGIN всегда t2em.com, даже если дроп создан через workers.dev)`);
 check(created.expires_in === 120, `expires_in === 120 (got ${created?.expires_in})`);
 
 // 2. Открытие страницы — одноразовое потребление.
