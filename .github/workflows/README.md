@@ -10,7 +10,7 @@ Triggered by: push to `main`, pull requests to `main`, weekly schedule
 |-----|-----------|
 | **secret-scan** | [gitleaks](https://github.com/gitleaks/gitleaks) v8.30.1 (pinned OSS binary) scans the full git history for hardcoded secrets |
 | **build-and-test** | `pnpm install --frozen-lockfile` → build (topological: `@t2em/protocol` first) → typecheck → tests → lint → dependency audit (high/critical = blocking) |
-| **codeql** | GitHub CodeQL deep static analysis, `security-extended` query set |
+| **codeql** | GitHub CodeQL deep static analysis, `security-extended` query set. Runs only on **public** repos (code scanning is a paid Advanced Security feature on private ones) — skipped automatically while the repo is private |
 
 All three run **in parallel**. All three must be green for `main`.
 

@@ -97,6 +97,11 @@ jobs:
   # ─────────────────────────────────────────────────────────────
   codeql:
     name: CodeQL SAST
+    # Code scanning доступен приватным репо только с GitHub Advanced
+    # Security (платно). На публичном репо джоба включается сама:
+    # private → skip, public → run. Вернуть контроль вручную можно,
+    # убрав условие, после включения GHAS.
+    if: ${{ !github.event.repository.private }}
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
