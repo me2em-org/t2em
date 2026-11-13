@@ -8,7 +8,7 @@ Triggered by: push to `main`, pull requests to `main`, weekly schedule
 
 | Job | What runs |
 |-----|-----------|
-| **secret-scan** | [gitleaks](https://github.com/gitleaks/gitleaks) scans the full git history for hardcoded secrets |
+| **secret-scan** | [gitleaks](https://github.com/gitleaks/gitleaks) v8.30.1 (pinned OSS binary) scans the full git history for hardcoded secrets |
 | **build-and-test** | `pnpm install --frozen-lockfile` → build (topological: `@t2em/protocol` first) → typecheck → tests → lint → dependency audit (high/critical = blocking) |
 | **codeql** | GitHub CodeQL deep static analysis, `security-extended` query set |
 
