@@ -13,6 +13,7 @@ import {
   secureWipe,
 } from '@me2em/crypto';
 import { T2EM_PROTOCOL_VERSION, type ModeBEnvelope } from './index.js';
+import { EnvelopeValidationError } from './envelope.js';
 import { b64uDecodeStrict, b64uEncode } from './base64url.js';
 
 /** Key length for AES-256-GCM (ТЗ §11.2). */
@@ -47,7 +48,8 @@ export async function unpackDropSym(envelope: ModeBEnvelope, symKey: string): Pr
   const symKeyBytes = b64uDecodeStrict(symKey);
   if (symKeyBytes.length !== SYM_KEY_BYTES) {
     secureWipe(symKeyBytes);
-    throw new Error(`MALFORMED: sym key must be ${SYM_KEY_BYTES} bytes`);
+    // §4.5 taxonomy: integrators branch on `code`, never on message text.
+    throw new EnvelopeValidationError('MALFORMED', `sym key must be ${SYM_KEY_BYTES} bytes`);
   }
   try {
     const key = await importAeadKey(symKeyBytes);

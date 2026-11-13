@@ -35,6 +35,7 @@ describe('base64url (RFC 4648 §5)', () => {
   it('rejects padded / standard-alphabet strings', () => {
     expect(() => b64uDecodeStrict('AAE=')).toThrow(/MALFORMED/);
     expect(() => b64uDecodeStrict('AA/+')).toThrow(/MALFORMED/);
+    expect(() => b64uDecodeStrict('AAAAA')).toThrow(/MALFORMED/); // length ≡ 1 (mod 4)
     expect(isB64uOfLength('AAAA', 3)).toBe(true);
     expect(isB64uOfLength('****', 3)).toBe(false);
   });
@@ -68,9 +69,15 @@ describe('Mode B pack/unpack (ТЗ §4.3)', () => {
     await expect(unpackDropSym(envelope, wrongKey)).rejects.toThrow();
   });
 
-  it('rejects malformed sym key length', async () => {
+  it('rejects malformed sym key length with a typed MALFORMED error (§4.5)', async () => {
     const { envelope } = await packDropSym(encodeUtf8('secret'));
-    await expect(unpackDropSym(envelope, b64uEncode(new Uint8Array(16)))).rejects.toThrow(/MALFORMED/);
+    try {
+      await unpackDropSym(envelope, b64uEncode(new Uint8Array(16)));
+      expect.unreachable();
+    } catch (e) {
+      expect(e).toBeInstanceOf(EnvelopeValidationError);
+      expect((e as EnvelopeValidationError).code).toBe('MALFORMED');
+    }
   });
 });
 

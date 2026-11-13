@@ -2,9 +2,9 @@ name: "CI & Security"
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, develop ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, develop ]
   schedule:
     - cron: '0 2 * * 1'   # Еженедельный прогон: понедельник 02:00 UTC
 

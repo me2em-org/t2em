@@ -117,3 +117,16 @@ export function safeJsonParse(text: string): unknown {
   });
   return parsed;
 }
+
+/**
+ * Non-throwing type guard built on `validateEnvelope` — the single
+ * source of validation truth (the Этап-0 inline copy was removed).
+ */
+export function isEnvelope(value: unknown): value is Envelope {
+  try {
+    validateEnvelope(value);
+    return true;
+  } catch {
+    return false;
+  }
+}

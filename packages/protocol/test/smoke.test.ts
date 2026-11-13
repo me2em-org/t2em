@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import {
-  assertSupportedVersion,
   HKDF_INFO_DROP_V1,
   isEnvelope,
   MAX_TTL_SECONDS,
@@ -22,9 +21,15 @@ describe('protocol v1 constants', () => {
   });
 });
 
-describe('isEnvelope', () => {
+// Valid-shape fixtures: iv = 12 bytes, ciphertext ≥ 16 bytes (GCM tag),
+// ephemeralPubKey = 32 bytes — enforced by validateEnvelope (ТЗ §4.2/4.3).
+const CT = 'A'.repeat(43); // 43 chars base64url = 32 bytes
+const IV12 = 'B'.repeat(16); // 16 chars base64url = 12 bytes
+const PK32 = 'C'.repeat(43); // 32 bytes
+
+describe('isEnvelope (wrapper over validateEnvelope, single source of truth)', () => {
   it('accepts a valid Mode B envelope', () => {
-    const env: ModeBEnvelope = { v: 1, mode: 'sym', ciphertext: 'AA', iv: 'BB' };
+    const env: ModeBEnvelope = { v: 1, mode: 'sym', ciphertext: CT, iv: IV12 };
     expect(isEnvelope(env)).toBe(true);
   });
 
@@ -32,24 +37,22 @@ describe('isEnvelope', () => {
     const env: ModeAEnvelope = {
       v: 1,
       mode: 'x25519',
-      ephemeralPubKey: 'AA',
-      ciphertext: 'BB',
-      iv: 'CC',
+      ephemeralPubKey: PK32,
+      ciphertext: CT,
+      iv: IV12,
     };
     expect(isEnvelope(env)).toBe(true);
   });
 
-  it('rejects unknown modes and wrong versions', () => {
-    expect(isEnvelope({ v: 1, mode: 'rsa', ciphertext: 'AA', iv: 'BB' })).toBe(false);
-    expect(isEnvelope({ v: 2, mode: 'sym', ciphertext: 'AA', iv: 'BB' })).toBe(false);
+  it('rejects unknown modes, wrong versions, undersized fields', () => {
+    expect(isEnvelope({ v: 1, mode: 'rsa', ciphertext: CT, iv: IV12 })).toBe(false);
+    expect(isEnvelope({ v: 2, mode: 'sym', ciphertext: CT, iv: IV12 })).toBe(false);
+    expect(isEnvelope({ v: 1, mode: 'sym', ciphertext: 'AA', iv: IV12 })).toBe(false); // ct < tag
+    expect(isEnvelope({ v: 1, mode: 'sym', ciphertext: CT, iv: 'BB' })).toBe(false); // iv ≠ 12B
     expect(isEnvelope(null)).toBe(false);
     expect(isEnvelope('sym')).toBe(false);
   });
 });
 
-describe('assertSupportedVersion', () => {
-  it('passes for v1 and throws UNSUPPORTED_VERSION otherwise', () => {
-    expect(() => assertSupportedVersion(1)).not.toThrow();
-    expect(() => assertSupportedVersion(2)).toThrow(/UNSUPPORTED_VERSION/);
-  });
-});
+// UNSUPPORTED_VERSION taxonomy is covered in mode-b.test.ts via
+// `validateEnvelope` — the only validation implementation there is.
