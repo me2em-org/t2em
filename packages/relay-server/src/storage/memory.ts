@@ -55,6 +55,28 @@ export class InMemoryRelayStorage implements RelayStorage {
     return InMemoryRelayStorage.live(this.data.get(`delete:${id}`));
   }
 
+  async putBurnMarker(id: DropId, ttlSeconds: number): Promise<void> {
+    this.data.set(`burn:${id}`, {
+      value: '0',
+      expiresAtMs: Date.now() + ttlSeconds * 1000,
+    });
+  }
+
+  async getBurnMarker(id: DropId): Promise<boolean> {
+    return InMemoryRelayStorage.live(this.data.get(`burn:${id}`)) !== null;
+  }
+
+  async destroyDrop(id: DropId): Promise<void> {
+    // DEL of missing keys is a no-op in Redis too — mirror that.
+    for (const key of [`drop:${id}`, `delete:${id}`, `burn:${id}`]) {
+      this.data.delete(key);
+    }
+  }
+
+  async ping(): Promise<boolean> {
+    return true; // in-process map — always alive
+  }
+
   async hitRateLimit(bucketKey: string): Promise<number> {
     const key = `ratelimit:${bucketKey}`;
     const now = Date.now();

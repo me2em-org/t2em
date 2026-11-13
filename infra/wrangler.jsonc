@@ -1,0 +1,21 @@
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  // t2em.com Blind Relay on Cloudflare Workers (ТЗ §3.4 mode 1, §8.6).
+  // Entry is the tsc build output — build first: `pnpm -r build`.
+  // Secrets (never in this file): UPSTASH_REDIS_REST_URL / _TOKEN via
+  // `wrangler secret put`. T2EM_PUBLIC_ORIGIN pins the share-link
+  // origin to the canonical host (§5.1); the custom domain is attached
+  // via the Workers Domains API, so no route/zone config lives here.
+  "name": "t2em-relay",
+  "main": "../packages/relay-server/dist/worker.js",
+  "compatibility_date": "2026-10-01",
+  "account_id": "c213f194a19ee33bdc5cd04835299ae3",
+  "workers_dev": true,
+  "vars": {
+    "T2EM_PUBLIC_ORIGIN": "https://t2em.com"
+  },
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  }
+}

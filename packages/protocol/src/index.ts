@@ -58,18 +58,16 @@ export interface ModeBEnvelope {
 /** Wire type stored (opaque) by the relay in `drop:{id}`. */
 export type Envelope = ModeAEnvelope | ModeBEnvelope;
 
-/** Type guard: envelope `mode` discriminator (server-side, crypto-agnostic). */
-export function isEnvelope(value: unknown): value is Envelope {
-  if (typeof value !== 'object' || value === null) return false;
-  const v = value as Record<string, unknown>;
-  if (v.v !== T2EM_PROTOCOL_VERSION) return false;
-  if (typeof v.ciphertext !== 'string' || typeof v.iv !== 'string') return false;
-  return v.mode === 'x25519' || v.mode === 'sym';
-}
+// NOTE: envelope validation lives exclusively in `./envelope.js`
+// (`validateEnvelope`, `isEnvelope`, `EnvelopeValidationError`,
+// `safeJsonParse`) — re-exported below. Do not add inline copies here.
 
-/** Throws when an envelope carries an unsupported `v` (§4.5: `UNSUPPORTED_VERSION`). */
-export function assertSupportedVersion(v: number): void {
-  if (v !== T2EM_PROTOCOL_VERSION) {
-    throw new Error(`UNSUPPORTED_VERSION: envelope.v=${v}, expected ${T2EM_PROTOCOL_VERSION}`);
-  }
-}
+// ---------------------------------------------------------------------------
+// Phase 1A — Mode B crypto core, validation, shared primitives (ТЗ §4.3–§4.5)
+// ---------------------------------------------------------------------------
+
+export * from './base64url.js';
+export * from './hash.js';
+export * from './fingerprint.js';
+export * from './envelope.js';
+export * from './mode-b.js';
