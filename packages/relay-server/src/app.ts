@@ -34,6 +34,13 @@ import {
 } from '@t2em/protocol';
 import type { RelayStorage } from './storage/types.js';
 import { T2EM_RELAY_VERSION } from './version.js';
+import {
+  UI_ASSETS,
+  WEB_UI_CSP,
+  renderHomePage,
+  renderNotFoundPage,
+  renderOpenPage,
+} from '@t2em/web-ui';
 
 export interface AppDeps {
   storage: RelayStorage;
@@ -239,25 +246,38 @@ export function createApp(deps: AppDeps): Hono {
 
   // -- §5.3 read ---------------------------------------------------------------
 
+  /**
+   * Content negotiation (§5.3): browsers (`Accept: text/html`) get the
+   * decrypting Web UI with the envelope embedded as JSON data — the
+   * drop is consumed by THIS very request, so no second fetch is ever
+   * made (read-exactly-once, §6.4). Every other client gets the JSON
+   * contract. The 404 body is identical for missing/expired/already-read
+   * within each modality (§5.3 anti-enumeration).
+   */
   app.get('/s/:id', async (c) => {
     const limited = await enforceRateLimit(c);
     if (limited) return limited;
 
+    const wantsHtml = (c.req.header('Accept') ?? '').includes('text/html');
     const id = c.req.param('id');
     // uuid format is public knowledge — rejecting it early leaks only
     // what the sender already knows; existing-vs-missing stays uniform.
-    if (id.length > 64 || !UUID_V4_RE.test(id)) return notFound(c);
+    if (id.length > 64 || !UUID_V4_RE.test(id)) {
+      return wantsHtml ? c.html(renderNotFoundPage(), 404) : notFound(c);
+    }
 
     // §6.1 refinement: burn:{id} marker exists only for non-burn drops,
     // so both branches below run exactly two storage ops and the 404
     // body is byte-identical for missing/expired/already-read (§5.3).
     const nonBurn = await storage.getBurnMarker(id);
     const value = nonBurn ? await storage.getDrop(id) : await storage.consumeDrop(id);
-    if (value === null) return notFound(c);
+    if (value === null) {
+      return wantsHtml ? c.html(renderNotFoundPage(), 404) : notFound(c);
+    }
 
-    // TODO(Этап 1D): `Accept: text/html` serves the decrypting Web UI;
-    // until then every Accept receives the JSON contract (§5.3).
-    return c.json({ envelope: JSON.parse(value) as Envelope });
+    const envelope = JSON.parse(value) as Envelope;
+    if (wantsHtml) return c.html(renderOpenPage(envelope));
+    return c.json({ envelope });
   });
 
   // -- §5.4 destroy -------------------------------------------------------------
@@ -287,6 +307,22 @@ export function createApp(deps: AppDeps): Hono {
     // still clears delete:{id} and reports success (§5.4).
     return c.json({ deleted: true });
   });
+
+  // -- Этап 1D embedded Web UI (§3.2, §5.3, §7.1) -------------------------------
+
+  /** Landing + create page; the browser does all Mode B crypto. */
+  app.get('/', (c) => {
+    c.header('Content-Security-Policy', WEB_UI_CSP);
+    return c.html(renderHomePage());
+  });
+
+  /** Static same-origin assets (CSP: script-src/style-src 'self'). */
+  for (const asset of UI_ASSETS) {
+    app.get(asset.path, (c) => {
+      c.header('Content-Security-Policy', WEB_UI_CSP);
+      return c.body(asset.body, 200, { 'Content-Type': asset.contentType });
+    });
+  }
 
   // -- Этап 0 liveness probe (infra monitors) ----------------------------------
 

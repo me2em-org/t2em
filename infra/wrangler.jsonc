@@ -1,0 +1,16 @@
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  // t2em.com Blind Relay on Cloudflare Workers (ТЗ §3.4 mode 1, §8.6).
+  // Entry is the tsc build output — build first: `pnpm -r build`.
+  // Secrets (never in this file): UPSTASH_REDIS_REST_URL / _TOKEN via
+  // `wrangler secret put`. Optional var T2EM_PUBLIC_ORIGIN overrides
+  // the share-link origin while *.workers.dev serves the worker.
+  "name": "t2em-relay",
+  "main": "../packages/relay-server/dist/worker.js",
+  "compatibility_date": "2026-10-01",
+  "workers_dev": true,
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  }
+}

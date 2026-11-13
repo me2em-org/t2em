@@ -8,6 +8,7 @@ import { describe, expect, it } from 'vitest';
 import { createApp, type AppDeps } from '../src/app.js';
 import { InMemoryRelayStorage } from '../src/storage/memory.js';
 import type { RelayStorage } from '../src/storage/types.js';
+import { WEB_UI_CSP } from '@t2em/web-ui';
 import {
   b64uDecodeStrict,
   b64uEncode,
@@ -369,5 +370,85 @@ describe('security headers on the API (§5.1)', () => {
     expect(res.headers.get('x-content-type-options')).toBe('nosniff');
     expect(res.headers.get('x-frame-options')).toBe('DENY');
     expect(res.headers.get('referrer-policy')).toBe('no-referrer');
+  });
+});
+
+describe('embedded Web UI (Этап 1D, §3.2, §5.3, §7.1)', () => {
+  it('serves the create page at / with the UI CSP', async () => {
+    const app = createApp(deps(new InMemoryRelayStorage()));
+    const res = await app.request('/');
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toContain('text/html');
+    expect(res.headers.get('content-security-policy')).toBe(WEB_UI_CSP);
+    const html = await res.text();
+    expect(html).toContain('<form id="create-form"');
+    expect(html).toContain('<script src="/ui.js"></script>');
+  });
+
+  it('serves the static assets with exact content types and the CSP', async () => {
+    const app = createApp(deps(new InMemoryRelayStorage()));
+    for (const asset of [
+      { path: '/ui.js', type: 'text/javascript; charset=utf-8' },
+      { path: '/ui.css', type: 'text/css; charset=utf-8' },
+    ]) {
+      const res = await app.request(asset.path);
+      expect(res.status).toBe(200);
+      expect(res.headers.get('content-type')).toBe(asset.type);
+      expect(res.headers.get('content-security-policy')).toBe(WEB_UI_CSP);
+      expect((await res.text()).length).toBeGreaterThan(0);
+    }
+  });
+
+  it('Accept: text/html gets the open page with the embedded envelope and burns the drop', async () => {
+    const storage = new InMemoryRelayStorage();
+    const app = createApp(deps(storage));
+    const envelope = symEnvelope();
+    const created = await createDrop(app, envelope);
+
+    const res = await app.request(`/s/${created.id}`, {
+      headers: { accept: 'text/html,application/xhtml+xml' },
+    });
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toContain('text/html');
+    const html = await res.text();
+    const m = /<script type="application\/json" id="t2em-envelope">(.*?)<\/script>/s.exec(html);
+    expect(m).not.toBeNull();
+    expect(JSON.parse((m as RegExpExecArray)[1])).toEqual(envelope);
+
+    // consumed by the HTML request itself (§6.4) — also for JSON clients
+    expect(await storage.getDrop(created.id)).toBeNull();
+    const again = await app.request(`/s/${created.id}`);
+    expect(again.status).toBe(404);
+  });
+
+  it('keeps the JSON contract for non-browser clients (§5.3)', async () => {
+    const app = createApp(deps(new InMemoryRelayStorage()));
+    const created = await createDrop(app);
+    const res = await app.request(`/s/${created.id}`);
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toContain('application/json');
+  });
+
+  it('renders one identical HTML 404 for missing, malformed and already-read ids', async () => {
+    const app = createApp(deps(new InMemoryRelayStorage()));
+    const created = await createDrop(app);
+    await app.request(`/s/${created.id}`); // burn it
+
+    const missing = await app.request(`/s/${crypto.randomUUID()}`, {
+      headers: { accept: 'text/html' },
+    });
+    const read = await app.request(`/s/${created.id}`, {
+      headers: { accept: 'text/html' },
+    });
+    const malformed = await app.request('/s/not-a-uuid', {
+      headers: { accept: 'text/html' },
+    });
+    expect(missing.status).toBe(404);
+    expect(read.status).toBe(404);
+    expect(malformed.status).toBe(404);
+    const missingBody = await missing.text();
+    expect(await read.text()).toBe(missingBody);
+    expect(await malformed.text()).toBe(missingBody);
+    expect(missingBody).toContain('does not exist, has expired, or has already been read');
   });
 });

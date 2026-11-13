@@ -83,6 +83,9 @@ importers:
       '@t2em/protocol':
         specifier: workspace:^
         version: link:../protocol
+      '@t2em/web-ui':
+        specifier: workspace:^
+        version: link:../web-ui
       '@upstash/redis':
         specifier: ^1.41.0
         version: 1.41.0
