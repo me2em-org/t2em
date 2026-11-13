@@ -73,8 +73,8 @@ node packages/relay-server/dist/node.js   # http://localhost:8787/healthz
 | 1 | MVP: Mode B, Blind Relay API v1, Upstash, деплой Workers | **готово, live: t2em.com** |
 | 2 | Mode A (X25519 + fingerprint), тест-векторы `vectors/t2em-drop.v1.json` | **готово** |
 | 3 | `@t2em/cli` | **готово** |
-| 4 | Python SDK (PyCA `cryptography`) | — |
-| 5 | `@t2em/mcp-server` (6 tools, SSRF-guard) | — |
+| 4 | Python SDK (PyCA `cryptography`), bit-compat с векторами | **готово** |
+| 5 | `@t2em/mcp-server` (6 tools, SSRF-guard, InMemorySecretVault) | **готово** |
 | 6 | Приёмка по ТЗ §17, security review, прод | — |
 
 ## License

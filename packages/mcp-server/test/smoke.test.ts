@@ -15,7 +15,7 @@ describe('MCP tool registry (ТЗ §8.4)', () => {
 
   it('keeps server metadata stable', () => {
     expect(MCP_SERVER_NAME).toBe('t2em');
-    expect(MCP_SERVER_VERSION).toBe('0.1.0');
+    expect(MCP_SERVER_VERSION).toBe('0.5.0');
   });
 
   it('documents every tool with a non-empty description', () => {

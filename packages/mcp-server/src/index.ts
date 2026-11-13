@@ -1,12 +1,13 @@
 /**
- * `@t2em/mcp-server` — tool registry of the t2em MCP server (ТЗ §8.4).
+ * `@t2em/mcp-server` — public API (ТЗ §8.4).
  *
- * Этап 0 skeleton: fixes the exact tool names and shapes so that Этап 5
- * (implementation on the MCP SDK) cannot drift from the ТЗ.
+ * Этап 0 skeleton fixed the tool registry; Этап 5 implements the six
+ * tools on the official MCP SDK (`createT2emServer`). Any new tool
+ * goes through a ТЗ revision — do not extend silently.
  */
 
 export const MCP_SERVER_NAME = 't2em';
-export const MCP_SERVER_VERSION = '0.1.0';
+export const MCP_SERVER_VERSION = '0.5.0';
 
 /** Descriptor of one MCP tool offered by the server. */
 export interface McpToolDescriptor {
@@ -28,3 +29,9 @@ export const T2EM_MCP_TOOLS: readonly McpToolDescriptor[] = [
   { name: 't2em_wipe_secret', description: 'secureWipe a stored secret by handle' },
   { name: 't2em_list_secrets', description: 'List secret handles (never values)' },
 ];
+
+export { createT2emServer, type T2emServerOptions } from './tools.js';
+export { InMemorySecretVault, secureWipe, isSecretHandle, type VaultEntryMeta } from './vault.js';
+export { RelayClient, RelayHttpError, type FetchLike } from './relay.js';
+export { guardedRequest, nodeHttpsConnect, MAX_REDIRECTS, DEFAULT_MAX_BODY_BYTES, type Connect, type GuardedResponse } from './http.js';
+export { SsrfError, classifyIp, validateTarget, defaultResolve, type Resolver } from './ssrf.js';
