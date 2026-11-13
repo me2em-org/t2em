@@ -2,13 +2,22 @@
 /**
  * `t2em-mcp` stdio entry point (ТЗ §8.4).
  *
- * Этап 0 skeleton. Этап 5 wires the MCP SDK server (stdio transport)
- * with the six tools from T2EM_MCP_TOOLS and the InMemorySecretVault.
+ * Wire into Claude Code / Cursor / Windsurf:
+ *
+ *   { "mcpServers": { "t2em": { "command": "npx", "args": ["-y", "@t2em/mcp-server"] } } }
+ *
+ * Environment:
+ *   T2EM_BASE_URL — relay origin, default https://t2em.com
+ *
+ * Zero-logging (§8.4): nothing about secrets is ever printed. stdout
+ * belongs exclusively to the MCP JSON-RPC transport.
  */
-import { MCP_SERVER_NAME, MCP_SERVER_VERSION, T2EM_MCP_TOOLS } from './index.js';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { createT2emServer } from './tools.js';
 
-console.error(
-  `${MCP_SERVER_NAME} MCP server v${MCP_SERVER_VERSION}: stdio transport is not implemented yet (roadmap Этап 5, docs/TZ_t2em.md §14)`,
-);
-console.error(`planned tools: ${T2EM_MCP_TOOLS.map((t) => t.name).join(', ')}`);
-process.exit(1);
+const baseUrl = process.env.T2EM_BASE_URL || 'https://t2em.com';
+
+const server = createT2emServer({ baseUrl });
+await server.connect(new StdioServerTransport());
+// Connected — the SDK now serves JSON-RPC over stdio; the process
+// stays alive until the client closes the transport.

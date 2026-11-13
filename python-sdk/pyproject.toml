@@ -1,0 +1,45 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "t2em"
+version = "0.5.0"
+description = "Python SDK for t2em.com — zero-knowledge secret drops (Blind Relay) for LangGraph / CrewAI / AutoGen pipelines"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+authors = [{ name = "Me2eM ecosystem" }]
+keywords = ["secrets", "zero-knowledge", "e2ee", "agents", "x25519", "aes-gcm"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Security :: Cryptography",
+    "Typing :: Typed",
+]
+# ТЗ §8.3: zero external NETWORK deps — stdlib urllib only.
+# Crypto: PyCA cryptography as the single crypto dependency (§11.2:
+# hand-rolled crypto is forbidden).
+dependencies = ["cryptography>=41.0"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[project.urls]
+Homepage = "https://t2em.com"
+Documentation = "https://t2em.com/docs/python-sdk.md"
+Source = "https://github.com/me2em-org/t2em"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/t2em"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-q"

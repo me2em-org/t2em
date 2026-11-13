@@ -28,5 +28,8 @@ change and is forbidden.
 
 ## Status
 
-Skeleton (Этап 0). Envelope implementation lands in Этап 1–2 per the
-roadmap in `docs/TZ_t2em.md` §14.
+**Implemented (Этапы 1–2).** Mode B, Mode A (X25519), envelope
+validation, fingerprints, shared test vectors — 31 unit tests in CI;
+`vectors/t2em-drop.v1.json` is generated deterministically by
+`node vectors/generate.mjs` and is the bit-compatibility contract for
+the Python SDK (Этап 4).

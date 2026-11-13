@@ -1,0 +1,82 @@
+{
+  "$comment": "t2em drop test vectors v1 (ТЗ §4.5) — deterministic, fixed keys/IVs. Test material only.",
+  "protocol": 1,
+  "hkdf_info": "me2em/crypto/v1/t2em-drop",
+  "vectors": [
+    {
+      "name": "mode-a-ascii",
+      "envelope": {
+        "v": 1,
+        "mode": "x25519",
+        "ephemeralPubKey": "NOQtSvXvlKB6OoQgG4idTNGnQ8snsRtqEEOKj-uOWEc",
+        "ciphertext": "efLfU1Jp_zhlNoPAXCTAN7xUFoDyOMoPr3UfZTD7xujulPw",
+        "iv": "AQIDBAUGBwgJCgsM"
+      },
+      "recipient_privkey": "EBESExQVFhcYGRobHB0eHyAhIiMkJSYnKCkqKywtLi8",
+      "recipient_pubkey": "2J47rXlDfb7Z-ENBgwT0YP8Fx_6B_kqVd6gEy5Nn_2Y",
+      "ephemeral_privkey": "MDEyMzQ1Njc4OTo7PD0-P0BBQkNERUZHSElKS0xNTk8",
+      "plaintext_utf8": "t2em test vector v1"
+    },
+    {
+      "name": "mode-b-ascii",
+      "envelope": {
+        "v": 1,
+        "mode": "sym",
+        "ciphertext": "mJxX2MsQl1M4Fighh1e9uTj00ISZSd1Uc1OJlWRYPr_HcwY",
+        "iv": "8PHy8_T19vf4-fr7"
+      },
+      "sym_key": "oKGio6SlpqeoqaqrrK2ur7CxsrO0tba3uLm6u7y9vr8",
+      "plaintext_utf8": "t2em test vector v1"
+    },
+    {
+      "name": "mode-a-utf8",
+      "envelope": {
+        "v": 1,
+        "mode": "x25519",
+        "ephemeralPubKey": "NOQtSvXvlKB6OoQgG4idTNGnQ8snsRtqEEOKj-uOWEc",
+        "ciphertext": "3X9rvqKlSvnBoyQnE3B_-Uya9vUxCTO5y9yuyrWpzPRUWH0fUZBzDn_K3RpEjWgJ37Wsi7ujni0yGXo7enNLtlbBfDwOvhGRKE4hdE5Opqn5c606l8Z8NJ3phw",
+        "iv": "AQIDBAUGBwgJCgsM"
+      },
+      "recipient_privkey": "EBESExQVFhcYGRobHB0eHyAhIiMkJSYnKCkqKywtLi8",
+      "recipient_pubkey": "2J47rXlDfb7Z-ENBgwT0YP8Fx_6B_kqVd6gEy5Nn_2Y",
+      "ephemeral_privkey": "MDEyMzQ1Njc4OTo7PD0-P0BBQkNERUZHSElKS0xNTk8",
+      "plaintext_utf8": "привет, мир — кириллица и UTF-8 обязательны"
+    },
+    {
+      "name": "mode-b-utf8",
+      "envelope": {
+        "v": 1,
+        "mode": "sym",
+        "ciphertext": "PBHjNTvcIpKcg4_GyAMCd8g6MONRH3Yd7SR2_3Rcg6mB6HZ9VuPsnRaFDM7UnXIFXef50qQyP91qm-x1YUh6QGXsRHaIxD5kYackttO4LA4J5LvYWwNYlfF07A",
+        "iv": "8PHy8_T19vf4-fr7"
+      },
+      "sym_key": "oKGio6SlpqeoqaqrrK2ur7CxsrO0tba3uLm6u7y9vr8",
+      "plaintext_utf8": "привет, мир — кириллица и UTF-8 обязательны"
+    },
+    {
+      "name": "mode-a-empty",
+      "envelope": {
+        "v": 1,
+        "mode": "x25519",
+        "ephemeralPubKey": "NOQtSvXvlKB6OoQgG4idTNGnQ8snsRtqEEOKj-uOWEc",
+        "ciphertext": "UA4X94oBfwUwpArx8t7eGw",
+        "iv": "AQIDBAUGBwgJCgsM"
+      },
+      "recipient_privkey": "EBESExQVFhcYGRobHB0eHyAhIiMkJSYnKCkqKywtLi8",
+      "recipient_pubkey": "2J47rXlDfb7Z-ENBgwT0YP8Fx_6B_kqVd6gEy5Nn_2Y",
+      "ephemeral_privkey": "MDEyMzQ1Njc4OTo7PD0-P0BBQkNERUZHSElKS0xNTk8",
+      "plaintext_utf8": ""
+    },
+    {
+      "name": "mode-b-empty",
+      "envelope": {
+        "v": 1,
+        "mode": "sym",
+        "ciphertext": "e3nqr1SFSQUM943vE1OvCw",
+        "iv": "8PHy8_T19vf4-fr7"
+      },
+      "sym_key": "oKGio6SlpqeoqaqrrK2ur7CxsrO0tba3uLm6u7y9vr8",
+      "plaintext_utf8": ""
+    }
+  ]
+}

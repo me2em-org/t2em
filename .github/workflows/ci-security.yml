@@ -112,3 +112,24 @@ jobs:
           queries: security-extended
 
       - uses: github/codeql-action/analyze@v4
+
+  # ─────────────────────────────────────────────────────────────
+  # 4. Python SDK — bit-compat с векторами @t2em/protocol (§8.3)
+  # ─────────────────────────────────────────────────────────────
+  python-sdk:
+    name: Python SDK (3.12)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      # Editable-инсталляция дополнительно проверяет упаковку
+      # (hatchling, pyproject.toml) — сборка пакета не сломана.
+      - name: Install python-sdk (editable + dev deps)
+        run: pip install -e "python-sdk[dev]"
+
+      - name: Run pytest (bit-compat vs vectors/t2em-drop.v1.json)
+        run: python -m pytest python-sdk -q

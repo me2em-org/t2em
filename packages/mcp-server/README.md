@@ -17,10 +17,30 @@ the LLM context (ТЗ `docs/TZ_t2em.md` §8.4).
 
 ## SSRF-guard (§8.4, blocking in CodeQL)
 
-- HTTPS only; RFC1918/loopback/link-local/CGNAT/metadata ranges denied;
-- DNS pinning against rebinding; redirects re-validated hop by hop.
+- HTTPS only; credentials in URLs rejected;
+- RFC1918 / loopback / link-local (cloud metadata 169.254.169.254) /
+  CGNAT / ULA / multicast / documentation ranges denied — IPv4,
+  IPv6 and IPv4-mapped forms;
+- DNS pinning against rebinding (connect uses a validated address);
+- redirects re-validated hop by hop (max 3), response capped at 1 MiB.
+
+## Install / wire into the agent
+
+```bash
+npm install -g @t2em/mcp-server
+```
+
+```json
+{ "mcpServers": { "t2em": { "command": "t2em-mcp" } } }
+```
+
+Environment: `T2EM_BASE_URL` (default `https://t2em.com`).
+Zero-logging: no secret value is ever printed; stdout belongs to the
+MCP JSON-RPC transport only.
 
 ## Status
 
-Skeleton (Этап 0): tool registry + version constants. Implementation on
-the MCP SDK lands in Этап 5 (see `docs/TZ_t2em.md` §14).
+**Implemented (Этап 5 done)** on the official MCP SDK
+(`@modelcontextprotocol/sdk`, stdio transport). Full journeys are
+tested in-process against the real Hono relay app via
+`InMemoryTransport` (62 tests).
