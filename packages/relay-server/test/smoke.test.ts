@@ -60,9 +60,4 @@ describe('UpstashRelayStorage', () => {
     expect(() => new UpstashRelayStorage({ url: 'http://x', token: 't' })).toThrow(/https/);
     expect(() => new UpstashRelayStorage({ url: 'https://x', token: '' })).toThrow(/token/);
   });
-
-  it('deliberately reports NOT_IMPLEMENTED in Этап 0', async () => {
-    const storage = new UpstashRelayStorage({ url: 'https://example.upstash.io', token: 't' });
-    await expect(storage.getDrop('abc')).rejects.toThrow(/NOT_IMPLEMENTED/);
-  });
 });

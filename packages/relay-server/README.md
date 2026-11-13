@@ -28,7 +28,9 @@ ratelimit:{ip_hash}:{minute} → counter EX 60
 
 ## Status
 
-Skeleton (Этап 0): shared app + storage interface + in-memory backend +
-health endpoint. The API surface (`POST /api/v1/drop`, `GET /s/:id`,
-`DELETE /api/v1/drop/:id`, rate limiting, Upstash adapter) lands in
-Этап 1 per `docs/TZ_t2em.md` §5.
+Этап 0–1C: shared app + storage interface + in-memory backend + health
+endpoint; **real Upstash REST adapter** (`SET … EX`, `GET`, `GETDEL`,
+`INCR+EXPIRE` pipeline) with mocked-wire unit tests and a live test
+gated on env credentials. The API surface (`POST /api/v1/drop`,
+`GET /s/:id`, `DELETE /api/v1/drop/:id`, rate limiting) lands in
+Этап 1B per `docs/TZ_t2em.md` §5.
