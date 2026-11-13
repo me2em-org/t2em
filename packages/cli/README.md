@@ -25,5 +25,14 @@ t2em-cli delete "https://t2em.com/s/abc123" --token <delete_token>
 
 ## Status
 
-Skeleton (Этап 0): argument parsing with the exit-code contract and
-`--version`. The crypto client (on `@t2em/protocol`) lands in Этап 3.
+**Implemented (Этап 3).** All four commands, Mode A and Mode B, keyfile
+handling (0600 + `secureWipe`), injectable transport — the command
+suite is integration-tested against the real relay Hono app
+(`packages/cli/test/commands.test.ts`).
+
+## Development
+
+```bash
+pnpm install && pnpm -r build
+echo "secret" | node packages/cli/dist/main.js push --ttl 120   # T2EM_BASE_URL to override the host
+```

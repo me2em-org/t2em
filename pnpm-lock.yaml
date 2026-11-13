@@ -11,6 +11,9 @@ importers:
       '@eslint/js':
         specifier: ^10.0.1
         version: 10.0.1(eslint@10.14.0)
+      '@me2em/crypto':
+        specifier: 1.1.0-rc.2
+        version: 1.1.0-rc.2
       eslint:
         specifier: ^10.9.1
         version: 10.14.0
@@ -29,10 +32,16 @@ importers:
 
   packages/cli:
     dependencies:
+      '@me2em/crypto':
+        specifier: 1.1.0-rc.2
+        version: 1.1.0-rc.2
       '@t2em/protocol':
         specifier: workspace:^
         version: link:../protocol
     devDependencies:
+      '@t2em/relay-server':
+        specifier: workspace:^
+        version: link:../relay-server
       '@types/node':
         specifier: ^24.0.0
         version: 24.19.2

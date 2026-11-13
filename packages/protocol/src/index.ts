@@ -71,3 +71,9 @@ export * from './hash.js';
 export * from './fingerprint.js';
 export * from './envelope.js';
 export * from './mode-b.js';
+
+// ---------------------------------------------------------------------------
+// Этап 2 — Mode A crypto (X25519 E2EE, ТЗ §4.2)
+// ---------------------------------------------------------------------------
+
+export * from './mode-a.js';

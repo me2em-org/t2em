@@ -69,10 +69,10 @@ node packages/relay-server/dist/node.js   # http://localhost:8787/healthz
 
 | Этап | Содержание | Статус |
 |---|---|---|
-| 0 | Скелет монорепо, CI (gitleaks + build/test + CodeQL), freeze-константы протокола | **в работе** |
-| 1 | MVP: Mode B, Blind Relay API v1, Upstash, деплой Workers | — |
-| 2 | Mode A (X25519 + fingerprint), тест-векторы `vectors/t2em-drop.v1.json` | — |
-| 3 | `@t2em/cli` | — |
+| 0 | Скелет монорепо, CI (gitleaks + build/test + CodeQL), freeze-константы протокола | **готово** |
+| 1 | MVP: Mode B, Blind Relay API v1, Upstash, деплой Workers | **готово, live: t2em.com** |
+| 2 | Mode A (X25519 + fingerprint), тест-векторы `vectors/t2em-drop.v1.json` | **готово** |
+| 3 | `@t2em/cli` | **готово** |
 | 4 | Python SDK (PyCA `cryptography`) | — |
 | 5 | `@t2em/mcp-server` (6 tools, SSRF-guard) | — |
 | 6 | Приёмка по ТЗ §17, security review, прод | — |
