@@ -163,8 +163,21 @@ export const nodeHttpsConnect: Connect = async ({
         timeout: timeoutMs,
         // DNS pinning: whatever this lookup is asked about, answer with
         // the validated address — rebinding cannot swap it underneath.
-        lookup: (_host, _opts, callback) =>
-          callback(null, pinnedIp, pinnedIp.includes(':') ? 6 : 4),
+        // Node >= 20 enables autoSelectFamily (Happy Eyeballs) and then
+        // calls `lookup(host, { all: true }, cb)` expecting an ARRAY of
+        // `{ address, family }`; the classic path expects (ip, family).
+        // Support both shapes or every request dies with
+        // ERR_INVALID_IP_ADDRESS on modern Node.
+        lookup: (_host, optsOrCb, maybeCb) => {
+          const all = typeof optsOrCb === 'object' && optsOrCb?.all === true;
+          const callback = typeof optsOrCb === 'function' ? optsOrCb : maybeCb;
+          const family = pinnedIp.includes(':') ? 6 : 4;
+          if (all) {
+            callback(null, [{ address: pinnedIp, family }]);
+          } else {
+            callback(null, pinnedIp, family);
+          }
+        },
       },
       (response) => {
         const chunks: Buffer[] = [];
