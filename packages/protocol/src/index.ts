@@ -26,7 +26,7 @@ export const HKDF_INFO_DROP_V1 = 'me2em/crypto/v1/t2em-drop';
 /** base64url (RFC 4648 §5, no padding) encoded byte string. */
 export type Base64Url = string;
 
-/** 8-char recipient fingerprint: base64url(sha256(pubkey))[0..8] (§4.2.1). */
+/** 16-char recipient fingerprint: base64url(sha256(pubkey))[0..16] (§4.2.1, 96 bits). */
 export type Fingerprint = string;
 
 /** Mode A envelope — asymmetric E2EE on X25519 (ТЗ §4.2). */
@@ -77,3 +77,9 @@ export * from './mode-b.js';
 // ---------------------------------------------------------------------------
 
 export * from './mode-a.js';
+
+// ---------------------------------------------------------------------------
+// v2.1 §3.6 — fixed public-API facade (packDrop / unpackDrop)
+// ---------------------------------------------------------------------------
+
+export * from './pack.js';

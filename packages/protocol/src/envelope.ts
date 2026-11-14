@@ -64,6 +64,19 @@ export function validateEnvelope(value: unknown): Envelope {
   checkCommonFields(v);
 
   if (v.mode === 'sym') {
+    // §4.5 negative contract: a sym envelope carrying Mode A fields is
+    // malformed — Mode A material must not be laundered through a sym
+    // envelope (cross-mode confusion, §4.5 vectors).
+    if (
+      v.ephemeralPubKey !== undefined ||
+      v.senderSignature !== undefined ||
+      v.senderPubKey !== undefined
+    ) {
+      throw new EnvelopeValidationError(
+        'MALFORMED',
+        'sym envelope must not carry Mode A fields (ephemeralPubKey/senderSignature/senderPubKey)',
+      );
+    }
     return {
       v: T2EM_PROTOCOL_VERSION,
       mode: 'sym',

@@ -52,6 +52,16 @@ describe('parseOptions (ТЗ §8.2 flag contract)', () => {
     expect(opts(['pull', 'a', 'b']).kind).toBe('invalid');
   });
 
+  it('pull --newline parses and defaults to false (§8.2 fix #11)', () => {
+    const parsed = opts(['pull', 'https://t2em.com/s/abc#k', '--newline']);
+    if (parsed.kind !== 'options' || parsed.options.command !== 'pull') throw new Error('expected pull options');
+    expect(parsed.options.newline).toBe(true);
+    const plain = opts(['pull', 'https://t2em.com/s/abc#k']);
+    if (plain.kind !== 'options' || plain.options.command !== 'pull') throw new Error('expected pull options');
+    expect(plain.options.newline).toBe(false);
+    expect(opts(['pull', 'https://t2em.com/s/abc#k', '--newline', '--newline']).kind).toBe('invalid');
+  });
+
   it('keygen requires --out', () => {
     expect(opts(['keygen', '--out', './agent.key']).kind).toBe('options');
     expect(opts(['keygen']).kind).toBe('invalid');

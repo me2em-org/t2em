@@ -33,11 +33,12 @@ Usage:
   t2em-cli delete <url> --token <delete_token>
 
 Options:
-  --ttl   drop lifetime in seconds, 60..900 (default: 300)
-  --to    recipient X25519 pubkey, base64url 32B (Mode A); otherwise Mode B
-  --key   X25519 keyfile for Mode A pulls (mutually exclusive with #fragment)
-  --out   keyfile path for keygen (written with 0600)
-  --token delete_token from push (stderr) for early destroy
+  --ttl     drop lifetime in seconds, 60..900 (default: 300)
+  --to      recipient X25519 pubkey, base64url 32B (Mode A); otherwise Mode B
+  --key     X25519 keyfile for Mode A pulls (mutually exclusive with #fragment)
+  --out     keyfile path for keygen (written with 0600)
+  --token   delete_token from push (stderr) for early destroy
+  --newline append a newline after the pulled plaintext (for $(...) use)
 
 Contract:
   secrets travel via stdin only — --secret is forbidden by design;
@@ -68,7 +69,7 @@ export const DEFAULT_TTL_SECONDS = 300;
 
 export type CommandOptions =
   | { command: 'push'; ttl: number; to: string | undefined }
-  | { command: 'pull'; url: string; key: string | undefined }
+  | { command: 'pull'; url: string; key: string | undefined; newline: boolean }
   | { command: 'keygen'; out: string }
   | { command: 'delete'; url: string; token: string };
 
@@ -141,6 +142,7 @@ function parsePush(args: readonly string[]): ParsedOptions {
 function parsePull(args: readonly string[]): ParsedOptions {
   const positional: string[] = [];
   let key: string | undefined;
+  let newline = false;
   for (let i = 0; i < args.length; i++) {
     const flag = args[i];
     if (flag === '--key') {
@@ -148,6 +150,11 @@ function parsePull(args: readonly string[]): ParsedOptions {
       if (value === undefined) return { kind: 'invalid', reason: '--key requires a keyfile path' };
       if (key !== undefined) return { kind: 'invalid', reason: '--key given more than once' };
       key = value;
+    } else if (flag === '--newline') {
+      // §8.2 (v2.1 fix #11): default pull adds NO trailing newline;
+      // --newline appends one for $(...) use cases.
+      if (newline) return { kind: 'invalid', reason: '--newline given more than once' };
+      newline = true;
     } else if (flag.startsWith('--')) {
       return { kind: 'invalid', reason: `unknown option for pull: ${flag}` };
     } else {
@@ -165,7 +172,7 @@ function parsePull(args: readonly string[]): ParsedOptions {
   if (!hasFragment && key === undefined) {
     return { kind: 'invalid', reason: 'pull needs a Mode B url with #fragment or --key <keyfile> for Mode A' };
   }
-  return { kind: 'options', options: { command: 'pull', url, key } };
+  return { kind: 'options', options: { command: 'pull', url, key, newline } };
 }
 
 function parseKeygen(args: readonly string[]): ParsedOptions {

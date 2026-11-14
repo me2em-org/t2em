@@ -26,8 +26,9 @@ from ._meta import SDK_VERSION, SDK_USER_AGENT
 from .client import CreatedDrop, ShareUrl, T2emClient
 from .envelope import Envelope, ModeAEnvelope, ModeBEnvelope, validate_envelope
 from .exceptions import HttpError, ProtocolError, T2emError, UsageError
-from .fingerprint import fingerprint_pubkey
-from .keyfile import KEYFILE_KIND, load_keyfile, write_keyfile
+from .facade import pack_drop, unpack_drop
+from .fingerprint import fingerprint_pubkey, generate_fingerprint
+from .keyfile import KEYFILE_KIND, KEYFILE_TYPE, KEYFILE_VERSION, load_keyfile, write_keyfile
 from .keys import X25519KeyPair, generate_x25519_keypair
 from .protocol import (
     HKDF_INFO_DROP_V1,
@@ -43,6 +44,8 @@ __all__ = [
     "Envelope",
     "HKDF_INFO_DROP_V1",
     "KEYFILE_KIND",
+    "KEYFILE_TYPE",
+    "KEYFILE_VERSION",
     "MAX_TTL_SECONDS",
     "MIN_TTL_SECONDS",
     "ModeAEnvelope",
@@ -60,9 +63,12 @@ __all__ = [
     "b64u_decode",
     "b64u_encode",
     "fingerprint_pubkey",
+    "generate_fingerprint",
     "generate_x25519_keypair",
     "is_b64u_of_length",
     "load_keyfile",
+    "pack_drop",
+    "unpack_drop",
     "validate_envelope",
     "write_keyfile",
 ]

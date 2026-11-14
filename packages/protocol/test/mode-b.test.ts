@@ -137,15 +137,15 @@ describe('safeJsonParse (ТЗ §11.4)', () => {
   });
 });
 
-describe('fingerprint (ТЗ §4.2.1)', () => {
-  it('is 8 chars of base64url(sha256(pubkey))', async () => {
+describe('fingerprint (ТЗ §4.2.1: 16 chars = 96 bits)', () => {
+  it('is 16 chars of base64url(sha256(pubkey))', async () => {
     const pub = new Uint8Array(32).fill(3);
     const fp = await fingerprintPubKey(pub);
-    expect(fp).toHaveLength(8);
+    expect(fp).toHaveLength(16);
     // Cross-check against the hex sha256 → base64url path.
     const hex = await sha256Hex(pub);
     const raw = Uint8Array.from(hex.match(/../g)!.map((h) => parseInt(h, 16)));
-    expect(fp).toBe(b64uEncode(raw).slice(0, 8));
+    expect(fp).toBe(b64uEncode(raw).slice(0, 16));
   });
 
   it('rejects non-32-byte keys', async () => {
