@@ -92,6 +92,7 @@ export async function keygenToFile(
     // mode in writeFileSync is umask-dependent — chmod explicitly (§8.2).
     writeFileSync(outPath, JSON.stringify(json, null, 2) + '\n', { mode: 0o600 });
     chmodSync(outPath, 0o600);
+    warnWiderPermissions(outPath, warn);
     return b64uEncode(publicKey);
   } finally {
     // The KeyObject pair lives in @me2em/crypto — wipe our encoded copy.

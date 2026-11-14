@@ -15,7 +15,6 @@ import {
   HKDF_INFO_DROP_V1,
   b64uDecodeStrict,
   b64uEncode,
-  decodeUtf8,
   encodeUtf8,
   fingerprintPubKey,
   packDrop,
