@@ -9,12 +9,41 @@
  * adapter behind the same `RelayStorage` interface.
  */
 import { serve } from '@hono/node-server';
-import { createApp } from './app.js';
+import { createApp, type AppDeps } from './app.js';
 import { InMemoryRelayStorage } from './storage/memory.js';
 
 const port = Number(process.env.T2EM_PORT ?? 8787);
 
-const app = createApp({ storage: new InMemoryRelayStorage() });
+/** Env vars are strings — parse defensively, ignore junk, keep defaults. */
+function numVar(name: string): number | undefined {
+  const raw = process.env[name];
+  if (raw === undefined || raw === '') return undefined;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : undefined;
+}
+
+const limits: Partial<AppDeps> = {
+  ...(numVar('RATE_LIMIT_DROP_PER_MINUTE') !== undefined
+    ? { rateLimitDropPerMinute: numVar('RATE_LIMIT_DROP_PER_MINUTE') }
+    : {}),
+  ...(numVar('RATE_LIMIT_DROP_PER_HOUR') !== undefined
+    ? { rateLimitDropPerHour: numVar('RATE_LIMIT_DROP_PER_HOUR') }
+    : {}),
+  ...(numVar('RATE_LIMIT_FETCH_PER_MINUTE') !== undefined
+    ? { rateLimitFetchPerMinute: numVar('RATE_LIMIT_FETCH_PER_MINUTE') }
+    : {}),
+  ...(numVar('RATE_LIMIT_DELETE_PER_MINUTE') !== undefined
+    ? { rateLimitDeletePerMinute: numVar('RATE_LIMIT_DELETE_PER_MINUTE') }
+    : {}),
+  ...(numVar('MAX_ENVELOPE_FIELDS') !== undefined
+    ? { maxEnvelopeFields: numVar('MAX_ENVELOPE_FIELDS') }
+    : {}),
+  ...(numVar('GLOBAL_ACTIVE_DROPS_LIMIT') !== undefined
+    ? { globalActiveDropsLimit: numVar('GLOBAL_ACTIVE_DROPS_LIMIT') }
+    : {}),
+};
+
+const app = createApp({ storage: new InMemoryRelayStorage(), ...limits });
 
 serve({ fetch: app.fetch, port }, (info) => {
   // Zero-logging: startup banner contains no request data, ever.

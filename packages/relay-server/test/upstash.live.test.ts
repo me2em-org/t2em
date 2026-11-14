@@ -33,8 +33,8 @@ d('UpstashRelayStorage (live Upstash REST)', () => {
 
   it('rate-limit counter increments within the bucket', async () => {
     const bucket = `ci:${Date.now().toString(36)}`;
-    const first = await storage.hitRateLimit(bucket);
-    const second = await storage.hitRateLimit(bucket);
+    const first = await storage.hitRateLimit(bucket, 60);
+    const second = await storage.hitRateLimit(bucket, 60);
     expect(second).toBe(first + 1);
   });
 });

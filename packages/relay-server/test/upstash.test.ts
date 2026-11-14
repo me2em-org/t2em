@@ -19,14 +19,21 @@ function installFetchMock() {
   const fake = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
     const body: unknown = JSON.parse(String(init?.body ?? 'null'));
     calls.push({ url: String(input), body });
-    // Real Upstash REST: body is an array of command arrays; the response is
-    // a bare array of {result, error} — exactly one entry per command.
-    const commands = Array.isArray(body) ? (body as unknown[]) : [body];
-    const payload = commands.map(() => {
+    // Real Upstash REST: a nested body ([[cmd],[cmd]]) is a pipeline and
+    // answers with a bare array of {result, error}; a flat body
+    // (["dbsize"]) is a single command answered with ONE {result, error}
+    // object. Verified live with a wire probe (@upstash/redis 1.41).
+    const isPipeline =
+      Array.isArray(body) && (body as unknown[]).every((c) => Array.isArray(c));
+    const commands: unknown[] = isPipeline
+      ? (body as unknown[])
+      : [body];
+    const results = commands.map(() => {
       const result = cannedResults.shift();
       return { result: result === undefined ? null : result, error: null };
     });
-    return new Response(JSON.stringify(payload), {
+    const responseBody = isPipeline ? results : results[0];
+    return new Response(JSON.stringify(responseBody), {
       status: 200,
       headers: { 'content-type': 'application/json' },
     });
@@ -80,14 +87,34 @@ describe('UpstashRelayStorage (REST wire format, ТЗ §6.1)', () => {
     expect(await storage().getDeleteTokenHash('abc')).toBe('a'.repeat(64));
   });
 
-  it('hitRateLimit pipelines INCR + EXPIRE 60 and returns the counter', async () => {
+  it('hitRateLimit pipelines INCR + EXPIRE per window and returns the counter', async () => {
     cannedResults = [3, 1];
-    const counter = await storage().hitRateLimit('ip:deadbeef:202611131012');
+    const counter = await storage().hitRateLimit('ip:deadbeef:post:m202611131012', 60);
     expect(counter).toBe(3);
     expect(calls[0].body).toEqual([
-      ['incr', 'ratelimit:ip:deadbeef:202611131012'],
-      ['expire', 'ratelimit:ip:deadbeef:202611131012', 60],
+      ['incr', 'ratelimit:ip:deadbeef:post:m202611131012'],
+      ['expire', 'ratelimit:ip:deadbeef:post:m202611131012', 60],
     ]);
+
+    // Hourly POST bucket (§5.1): same pipeline, EX 3600.
+    cannedResults = [1, 1];
+    const hourly = await storage().hitRateLimit('ip:deadbeef:post:h1234', 3600);
+    expect(hourly).toBe(1);
+    expect(calls[1].body).toEqual([
+      ['incr', 'ratelimit:ip:deadbeef:post:h1234'],
+      ['expire', 'ratelimit:ip:deadbeef:post:h1234', 3600],
+    ]);
+  });
+
+  it('dbsize returns the key count, or null on failure (§5.1 global guard)', async () => {
+    cannedResults = [42];
+    expect(await storage().dbsize()).toBe(42);
+    // DBSizeCommand sends a flat single-command body (not a pipeline).
+    expect(calls[0].body).toEqual(['dbsize']);
+
+    // result:null (or any non-number) → null → the caller fails open.
+    cannedResults = [null];
+    expect(await storage().dbsize()).toBeNull();
   });
 
   it('burn marker: SET burn:{id} for non-burn drops, GET to detect (§5.2)', async () => {

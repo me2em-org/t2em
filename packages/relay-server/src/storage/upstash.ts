@@ -10,10 +10,11 @@
  * Key layout mirrors ТЗ §6.1:
  *   drop:{id}                  → envelope JSON, EX {ttl}
  *   delete:{id}                → sha256(delete_token) hex, EX {ttl}
- *   ratelimit:{ip_hash}:{min}  → counter, EX 60 (INCR + EXPIRE)
+ *   burn:{id}                  → non-burn marker, EX {ttl}
+ *   ratelimit:{ip_hash}:{ep}:{window} → counter, EX 60/3600 (INCR + EXPIRE)
  */
 import { Redis } from '@upstash/redis';
-import { RATE_LIMIT_WINDOW_SECONDS, type DropId, type RelayStorage } from './types.js';
+import { type DropId, type RelayStorage } from './types.js';
 
 export interface UpstashRelayStorageConfig {
   /** e.g. https://global-...upstash.io */
@@ -89,15 +90,25 @@ export class UpstashRelayStorage implements RelayStorage {
     }
   }
 
-  async hitRateLimit(bucketKey: string): Promise<number> {
-    // Single-RTT pipeline; EXPIRE refreshes within the per-minute
-    // bucket, which only extends a past minute's counter lifetime —
-    // the bucket key itself rotates every minute (ТЗ §6.1).
+  async hitRateLimit(bucketKey: string, windowSeconds: number): Promise<number> {
+    // Single-RTT pipeline; EXPIRE refreshes within the window bucket,
+    // which only extends a past window's counter lifetime — the bucket
+    // key itself rotates every window (ТЗ §6.1).
     const key = `ratelimit:${bucketKey}`;
     const pipeline = this.redis.pipeline();
     pipeline.incr(key);
-    pipeline.expire(key, RATE_LIMIT_WINDOW_SECONDS);
+    pipeline.expire(key, windowSeconds);
     const [counter] = await pipeline.exec<[number, number]>();
     return counter;
+  }
+
+  async dbsize(): Promise<number | null> {
+    try {
+      // O(1) on Redis 7 / Upstash REST (§5.1 global active-drops guard).
+      const size = await this.redis.dbsize();
+      return typeof size === 'number' ? size : null;
+    } catch {
+      return null; // fail-open: the POST's own writes would fail anyway
+    }
   }
 }

@@ -46,8 +46,26 @@ export interface AppDeps {
   storage: RelayStorage;
   /** Origin used to build drop URLs (§5.1: https://t2em.com). */
   publicOrigin?: string;
-  /** §5.1: 60 requests/minute per IP by default. */
-  rateLimitPerMinute?: number;
+  /** §5.1: POST /drop limit per IP — minute window (default 30/min; ТЗ says 10/min, raised per confirmed review note so §7.3 provisioning at scale stays feasible). */
+  rateLimitDropPerMinute?: number;
+  /** §5.1: POST /drop limit per IP — hour window (default 100/hour). */
+  rateLimitDropPerHour?: number;
+  /** §5.1: GET /s/:id limit per IP — minute window (default 60/min). */
+  rateLimitFetchPerMinute?: number;
+  /** §5.1: DELETE /drop/:id limit per IP — minute window (default 60/min). */
+  rateLimitDeletePerMinute?: number;
+  /** §5.1 JSON-bomb guard: max fields in the envelope object (default 10). */
+  maxEnvelopeFields?: number;
+  /**
+   * §5.1 global active-drops budget. The guard refuses POST /drop with
+   * 503 once DBSIZE reaches 2× this number of keys (every drop owns
+   * `drop:{id}` + `delete:{id}`; ratelimit counters and burn markers
+   * make the effective drop ceiling slightly conservative). Deliberate
+   * deviation from the §6.1 INCR/DECR counter: Redis never decrements
+   * an expired key, so a counter leaks upward and would eventually 503
+   * a healthy service. DBSIZE is O(1) and self-correcting (§9.5).
+   */
+  globalActiveDropsLimit?: number;
   /** §5.1 max request payload in bytes (default 64 KiB). */
   maxPayloadBytes?: number;
   /** Epoch-ms clock — injectable for tests. */
@@ -64,7 +82,12 @@ export interface AppDeps {
 }
 
 const DEFAULT_PUBLIC_ORIGIN = 'https://t2em.com';
-const DEFAULT_RATE_LIMIT_PER_MINUTE = 60;
+const DEFAULT_RATE_LIMIT_DROP_PER_MINUTE = 30;
+const DEFAULT_RATE_LIMIT_DROP_PER_HOUR = 100;
+const DEFAULT_RATE_LIMIT_FETCH_PER_MINUTE = 60;
+const DEFAULT_RATE_LIMIT_DELETE_PER_MINUTE = 60;
+const DEFAULT_MAX_ENVELOPE_FIELDS = 10;
+const DEFAULT_GLOBAL_ACTIVE_DROPS_LIMIT = 1_000_000;
 const DEFAULT_MAX_PAYLOAD_BYTES = 65536; // 64 KB (§5.1)
 
 /** Only v4 uuids are issued by this relay; strict format = anti-enum. */
@@ -106,7 +129,12 @@ export function createApp(deps: AppDeps): Hono {
   const {
     storage,
     publicOrigin = DEFAULT_PUBLIC_ORIGIN,
-    rateLimitPerMinute = DEFAULT_RATE_LIMIT_PER_MINUTE,
+    rateLimitDropPerMinute = DEFAULT_RATE_LIMIT_DROP_PER_MINUTE,
+    rateLimitDropPerHour = DEFAULT_RATE_LIMIT_DROP_PER_HOUR,
+    rateLimitFetchPerMinute = DEFAULT_RATE_LIMIT_FETCH_PER_MINUTE,
+    rateLimitDeletePerMinute = DEFAULT_RATE_LIMIT_DELETE_PER_MINUTE,
+    maxEnvelopeFields = DEFAULT_MAX_ENVELOPE_FIELDS,
+    globalActiveDropsLimit = DEFAULT_GLOBAL_ACTIVE_DROPS_LIMIT,
     maxPayloadBytes = DEFAULT_MAX_PAYLOAD_BYTES,
     now = Date.now,
     genId = () => crypto.randomUUID(),
@@ -122,7 +150,7 @@ export function createApp(deps: AppDeps): Hono {
   });
 
   /** Single error body builder — integration by `code`, never text. */
-  type ApiErrorStatus = 400 | 401 | 403 | 404 | 413 | 429 | 500;
+  type ApiErrorStatus = 400 | 401 | 403 | 404 | 413 | 429 | 500 | 503;
   const apiError = (
     c: Context,
     status: ApiErrorStatus,
@@ -138,27 +166,56 @@ export function createApp(deps: AppDeps): Hono {
    */
   const notFound = (c: Context): Response => apiError(c, 404, 'NOT_FOUND', 'Not found');
 
+  /** Which API endpoint family a request belongs to (§5.1 buckets). */
+  type RateLimitEndpoint = 'drop' | 'fetch' | 'delete';
+
+  const RATE_LIMIT_CONFIG: Record<
+    RateLimitEndpoint,
+    { minute: number; hour?: number; tag: string }
+  > = {
+    drop: { minute: rateLimitDropPerMinute, hour: rateLimitDropPerHour, tag: 'post' },
+    fetch: { minute: rateLimitFetchPerMinute, tag: 'get' },
+    delete: { minute: rateLimitDeletePerMinute, tag: 'del' },
+  };
+
   /**
-   * Per-IP rate limiting (§5.1, §6.1): `ratelimit:{sha256(ip)}:{minute}`,
-   * INCR + EX 60. The raw IP exists only inside this call frame.
+   * Per-endpoint, per-IP fixed-window rate limiting (§5.1, §6.1):
+   * `ratelimit:{sha256(ip)}:{endpoint}:{m{minute}|h{hour}}`, INCR +
+   * EX 60 / EX 3600. POST /drop additionally owns an hourly bucket.
+   * The raw IP exists only inside this call frame.
    */
-  const enforceRateLimit = async (c: Context): Promise<Response | null> => {
+  const enforceRateLimit = async (
+    c: Context,
+    endpoint: RateLimitEndpoint,
+  ): Promise<Response | null> => {
+    const cfg = RATE_LIMIT_CONFIG[endpoint];
     const ip = getClientIp(c);
     const ipHash = await sha256Hex(encodeUtf8(ip));
     const nowSec = Math.floor(now() / 1000);
     const minute = Math.floor(nowSec / 60);
-    const count = await storage.hitRateLimit(`${ipHash}:${minute}`);
-    if (count <= rateLimitPerMinute) return null;
-    const retryAfter = Math.max(1, (minute + 1) * 60 - nowSec);
-    return c.json(
-      { error: { code: 'RATE_LIMITED', message: 'Too many requests' } },
-      429,
-      {
-        'X-RateLimit-Limit': String(rateLimitPerMinute),
-        'X-RateLimit-Remaining': '0',
-        'Retry-After': String(retryAfter),
-      },
-    );
+
+    const limited = async (windowKey: string, limit: number, windowSec: number): Promise<Response | null> => {
+      const count = await storage.hitRateLimit(`${ipHash}:${windowKey}`, windowSec);
+      if (count <= limit) return null;
+      const retryAfter = Math.max(1, (Math.floor(nowSec / windowSec) + 1) * windowSec - nowSec);
+      return c.json(
+        { error: { code: 'RATE_LIMITED', message: 'Too many requests' } },
+        429,
+        {
+          'X-RateLimit-Limit': String(limit),
+          'X-RateLimit-Remaining': '0',
+          'Retry-After': String(retryAfter),
+        },
+      );
+    };
+
+    const tripped = await limited(`${cfg.tag}:m${minute}`, cfg.minute, 60);
+    if (tripped) return tripped;
+    if (cfg.hour !== undefined) {
+      const hour = Math.floor(nowSec / 3600);
+      return limited(`${cfg.tag}:h${hour}`, cfg.hour, 3600);
+    }
+    return null;
   };
 
   // -- §5.6 health -----------------------------------------------------------
@@ -174,7 +231,7 @@ export function createApp(deps: AppDeps): Hono {
   // -- §5.2 create ------------------------------------------------------------
 
   app.post('/api/v1/drop', async (c) => {
-    const limited = await enforceRateLimit(c);
+    const limited = await enforceRateLimit(c, 'drop');
     if (limited) return limited;
 
     const text = await c.req.text();
@@ -195,6 +252,17 @@ export function createApp(deps: AppDeps): Hono {
     }
 
     const body = parsed as Record<string, unknown>;
+
+    // §5.1 JSON-bomb guard: the envelope may carry at most
+    // `maxEnvelopeFields` keys. Checked on the RAW object before
+    // validateEnvelope, which rebuilds a clean envelope and silently
+    // drops unknown keys — the wall must stand on the incoming bytes.
+    if (typeof body.envelope === 'object' && body.envelope !== null) {
+      const fieldCount = Object.keys(body.envelope as object).length;
+      if (fieldCount > maxEnvelopeFields) {
+        return apiError(c, 400, 'MALFORMED', `Envelope exceeds ${maxEnvelopeFields} fields`);
+      }
+    }
 
     let envelope: Envelope;
     try {
@@ -220,6 +288,14 @@ export function createApp(deps: AppDeps): Hono {
     const burn = body.burn_after_reading === undefined ? true : body.burn_after_reading;
     if (typeof burn !== 'boolean') {
       return apiError(c, 400, 'MALFORMED', 'burn_after_reading must be a boolean');
+    }
+
+    // §5.1 global active-drops budget (§9.5: POST → 503, GET/DELETE
+    // unaffected). Checked after validation, before the writes: a
+    // malformed request must say "400", not "we're full".
+    const size = await storage.dbsize();
+    if (size !== null && size >= globalActiveDropsLimit * 2) {
+      return apiError(c, 503, 'GLOBAL_LIMIT_EXCEEDED', 'Global active drops limit reached');
     }
 
     const id = genId();
@@ -255,7 +331,7 @@ export function createApp(deps: AppDeps): Hono {
    * within each modality (§5.3 anti-enumeration).
    */
   app.get('/s/:id', async (c) => {
-    const limited = await enforceRateLimit(c);
+    const limited = await enforceRateLimit(c, 'fetch');
     if (limited) return limited;
 
     const wantsHtml = (c.req.header('Accept') ?? '').includes('text/html');
@@ -283,7 +359,7 @@ export function createApp(deps: AppDeps): Hono {
   // -- §5.4 destroy -------------------------------------------------------------
 
   app.delete('/api/v1/drop/:id', async (c) => {
-    const limited = await enforceRateLimit(c);
+    const limited = await enforceRateLimit(c, 'delete');
     if (limited) return limited;
 
     const token = c.req.header('X-Delete-Token');
