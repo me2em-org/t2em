@@ -591,3 +591,20 @@ describe('embedded Web UI (Этап 1D, §3.2, §5.3, §7.1)', () => {
     expect(missingBody).toContain('does not exist, has expired, or has already been read');
   });
 });
+
+describe('GET /for-agents (static agent guide)', () => {
+  it('serves the CSP-guarded HTML guide without touching any storage', async () => {
+    const app = createApp(deps(new InMemoryRelayStorage()));
+    const res = await app.request('/for-agents');
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toContain('text/html');
+    expect(res.headers.get('content-security-policy')).toBe(WEB_UI_CSP);
+    const body = await res.text();
+    expect(body).toContain('api/v1/drop');
+    expect(body).not.toContain('<script');
+    // repeat-safe: static page, no drop consumption, identical on refetch
+    const res2 = await app.request('/for-agents');
+    expect(res2.status).toBe(200);
+    expect(await res2.text()).toBe(body);
+  });
+});

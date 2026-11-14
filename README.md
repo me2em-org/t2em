@@ -35,6 +35,9 @@ Handle → SubHandle, Ed25519-производные децентрализов�
 - **Тест-векторы** — `vectors/t2em-drop.v1.json`: 25 векторов + 2
   fingerprint-пина (positive с Ed25519-конверсией и подписью
   отправителя, negative, cross-mode, 64 KB), бит-в-бит TS↔Python.
+- **LLM-агенты** — читайте дропы только через API:
+  [`https://t2em.com/for-agents`](https://t2em.com/for-agents)
+  (GET `/s/<id>` HTML-страницы потребляет дроп и без JS бесполезен).
 
 ## Как это работает
 
