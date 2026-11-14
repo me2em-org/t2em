@@ -4,7 +4,7 @@
  *
  * Wire into Claude Code / Cursor / Windsurf:
  *
- *   { "mcpServers": { "t2em": { "command": "npx", "args": ["-y", "@me2em/mcp-server"] } } }
+ *   { "mcpServers": { "t2em": { "command": "npx", "args": ["-y", "@me2em/t2em-mcp-server"] } } }
  *
  * Environment:
  *   T2EM_BASE_URL — relay origin, default https://t2em.com

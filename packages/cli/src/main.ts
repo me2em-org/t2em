@@ -5,7 +5,7 @@
  * Wires the exit-code contract: 0 success · 1 error · 2 invalid args.
  * Base url comes from T2EM_BASE_URL (default https://t2em.com).
  */
-import { T2EM_PROTOCOL_VERSION } from '@me2em/protocol';
+import { T2EM_PROTOCOL_VERSION } from '@me2em/t2em-protocol';
 import { RelayClient } from './client.js';
 import { describeError, runDelete, runKeygen, runPull, runPush, type Io } from './commands.js';
 import { UsageError } from './errors.js';

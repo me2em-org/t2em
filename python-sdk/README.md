@@ -47,7 +47,7 @@ key = load_keyfile("./agent.key")                # LoadedKey(private_key, public
 - Networking: stdlib `urllib` only (no `requests`/`httpx`) — §8.3.
 - Crypto: PyCA `cryptography` as the single crypto dependency
   (hand-rolled crypto is forbidden, §11.2); HKDF strictly per RFC 5869.
-- Bit-compatible with the TypeScript protocol `@me2em/protocol`:
+- Bit-compatible with the TypeScript protocol `@me2em/t2em-protocol`:
   verified against `vectors/t2em-drop.v1.json` (unpack AND deterministic
   re-encryption, both modes) plus TS↔Python cross-pack/unpack checks.
 - Transport is injectable (`T2emClient(base_url, transport=...)`) for
@@ -63,7 +63,7 @@ python-sdk/
 ├── src/t2em/           # package (py.typed)
 │   ├── protocol.py     # constants: version, TTL bounds, HKDF info (freeze §4.5)
 │   ├── base64url.py    # strict RFC 4648 §5 unpadded codec
-│   ├── envelope.py     # v1 envelope validation (mirror of @me2em/protocol)
+│   ├── envelope.py     # v1 envelope validation (mirror of @me2em/t2em-protocol)
 │   ├── mode_b.py       # pack/unpack sym (AES-256-GCM, 12B IV)
 │   ├── mode_a.py       # pack/unpack X25519 ECDH + HKDF-SHA256
 │   ├── fingerprint.py  # 8-char pubkey fingerprint (§4.2.1)

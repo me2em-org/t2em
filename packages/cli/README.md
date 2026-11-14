@@ -1,4 +1,4 @@
-# @me2em/cli
+# @me2em/t2em-cli
 
 `t2em-cli` — command-line client for [t2em.com](https://t2em.com)
 (ТЗ `docs/TZ_t2em.md` §8.2).

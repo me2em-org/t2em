@@ -1,5 +1,5 @@
 {
-  "name": "@me2em/mcp-server",
+  "name": "@me2em/t2em-mcp-server",
   "version": "0.1.0",
   "description": "MCP server for t2em.com: t2em_keygen/push/pull/http_request/wipe_secret/list_secrets with InMemorySecretVault and SSRF-guard (ТЗ §8.4)",
   "type": "module",
@@ -36,11 +36,11 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.32.2",
-    "@me2em/protocol": "workspace:^",
+    "@me2em/t2em-protocol": "workspace:^",
     "zod": "^4.6.7"
   },
   "devDependencies": {
-    "@me2em/relay-server": "workspace:^",
+    "@me2em/t2em-relay-server": "workspace:^",
     "@types/node": "^24.0.0",
     "typescript": "^5.6.0",
     "vitest": "^5.1.0"

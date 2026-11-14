@@ -19,7 +19,7 @@ import {
   packDropSym,
   unpackDropAsym,
   unpackDropSym,
-} from '@me2em/protocol';
+} from '@me2em/t2em-protocol';
 import { RelayClient, parseShareUrl, type WireEnvelope } from './client.js';
 import { HttpError } from './errors.js';
 import { fingerprintLine, keygenToFile, loadKeyFile } from './keys.js';

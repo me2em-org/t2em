@@ -24,9 +24,9 @@ Handle → SubHandle, Ed25519-производные децентрализов�
   `version/type/privateKey/publicKey/createdAt/fingerprint(16)`;
   fingerprint самоверифицируется при загрузке (сплайсинг → отказ),
   legacy-формат `v`/`kind` читается для совместимости. Валидация —
-  одна на всех клиентов: `parseKeyFileJson` в `@me2em/protocol`.
+  одна на всех клиентов: `parseKeyFileJson` в `@me2em/t2em-protocol`.
 - **Фасад §3.6** — интеграторы шифруют через `packDrop`/`unpackDrop`
-  (TS: `@me2em/protocol`, Python: `t2em.pack_drop`/`t2em.unpack_drop`);
+  (TS: `@me2em/t2em-protocol`, Python: `t2em.pack_drop`/`t2em.unpack_drop`);
   конверт, открытый «чужим» режимом, отклоняется (`MALFORMED`, §4.5).
 - **Ошибки** — единая поверхность `КОД: сообщение` по таксономии §4.5
   (`UNSUPPORTED_VERSION` / `MALFORMED` / `INVALID_LENGTH` /
@@ -57,11 +57,11 @@ User-Agent, тела запросов (zero-logging). Подробно — ТЗ 
 ```
 t2em/
 ├── packages/
-│   ├── protocol/       @me2em/protocol      — криптографическое ядро (Mode A/B)
-│   ├── relay-server/   @me2em/relay-server  — Blind Relay (Workers + Node)
-│   ├── cli/            @me2em/cli           — t2em-cli (push/pull/keygen/delete)
-│   ├── mcp-server/     @me2em/mcp-server    — MCP-сервер (6 tools, SSRF-guard)
-│   └── web-ui/         @me2em/web-ui        — Web UI (vanilla JS, без фреймворков)
+│   ├── protocol/       @me2em/t2em-protocol      — криптографическое ядро (Mode A/B)
+│   ├── relay-server/   @me2em/t2em-relay-server  — Blind Relay (Workers + Node)
+│   ├── cli/            @me2em/t2em-cli           — t2em-cli (push/pull/keygen/delete)
+│   ├── mcp-server/     @me2em/t2em-mcp-server    — MCP-сервер (6 tools, SSRF-guard)
+│   └── web-ui/         @me2em/t2em-web-ui        — Web UI (vanilla JS, без фреймворков)
 ├── python-sdk/         t2em                — Python SDK (PyPI, Этап 4)
 ├── docs/               ТЗ и документация
 ├── infra/              Wrangler / Docker конфиги
@@ -98,9 +98,9 @@ node packages/relay-server/dist/node.js   # http://localhost:8787/healthz
 | 0 | Скелет монорепо, CI (gitleaks + build/test + CodeQL), freeze-константы протокола | **готово** |
 | 1 | MVP: Mode B, Blind Relay API v1, Upstash, деплой Workers | **готово, live: t2em.com** |
 | 2 | Mode A (X25519 + fingerprint), тест-векторы `vectors/t2em-drop.v1.json` | **готово** |
-| 3 | `@me2em/cli` | **готово** |
+| 3 | `@me2em/t2em-cli` | **готово** |
 | 4 | Python SDK (PyCA `cryptography`), bit-compat с векторами | **готово** |
-| 5 | `@me2em/mcp-server` (6 tools, SSRF-guard, InMemorySecretVault) | **готово** |
+| 5 | `@me2em/t2em-mcp-server` (6 tools, SSRF-guard, InMemorySecretVault) | **готово** |
 | 6 | Приёмка по ТЗ §17, security review, прод | — |
 | 7 | Доработка по ТЗ v2.1: P0 abuse-limits (§5.1/§5.2), P1 криптоконтракт (fingerprint 16, фасад §3.6, векторы, keyfile §8.2), P2 error surface + keyfile в MCP + доки | **готово** |
 

@@ -35,11 +35,11 @@ importers:
       '@me2em/crypto':
         specifier: 1.1.0-rc.2
         version: 1.1.0-rc.2
-      '@me2em/protocol':
+      '@me2em/t2em-protocol':
         specifier: workspace:^
         version: link:../protocol
     devDependencies:
-      '@me2em/relay-server':
+      '@me2em/t2em-relay-server':
         specifier: workspace:^
         version: link:../relay-server
       '@types/node':
@@ -54,7 +54,7 @@ importers:
 
   packages/mcp-server:
     dependencies:
-      '@me2em/protocol':
+      '@me2em/t2em-protocol':
         specifier: workspace:^
         version: link:../protocol
       '@modelcontextprotocol/sdk':
@@ -64,7 +64,7 @@ importers:
         specifier: ^4.6.7
         version: 4.6.7
     devDependencies:
-      '@me2em/relay-server':
+      '@me2em/t2em-relay-server':
         specifier: workspace:^
         version: link:../relay-server
       '@types/node':
@@ -101,10 +101,10 @@ importers:
       '@me2em/crypto':
         specifier: 1.1.0-rc.2
         version: 1.1.0-rc.2
-      '@me2em/protocol':
+      '@me2em/t2em-protocol':
         specifier: workspace:^
         version: link:../protocol
-      '@me2em/web-ui':
+      '@me2em/t2em-web-ui':
         specifier: workspace:^
         version: link:../web-ui
       '@upstash/redis':
@@ -129,7 +129,7 @@ importers:
 
   packages/web-ui:
     dependencies:
-      '@me2em/protocol':
+      '@me2em/t2em-protocol':
         specifier: workspace:^
         version: link:../protocol
     devDependencies:

@@ -31,7 +31,7 @@ import {
   safeJsonParse,
   sha256Hex,
   validateEnvelope,
-} from '@me2em/protocol';
+} from '@me2em/t2em-protocol';
 import type { RelayStorage } from './storage/types.js';
 import { T2EM_RELAY_VERSION } from './version.js';
 import {
@@ -41,7 +41,7 @@ import {
   renderHomePage,
   renderNotFoundPage,
   renderOpenPage,
-} from '@me2em/web-ui';
+} from '@me2em/t2em-web-ui';
 
 export interface AppDeps {
   storage: RelayStorage;
