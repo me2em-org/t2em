@@ -14,6 +14,7 @@ import { secureWipeMultiple } from '@me2em/crypto';
 import {
   b64uDecodeStrict,
   encodeUtf8,
+  formatErrorLine,
   packDropAsym,
   packDropSym,
   unpackDropAsym,
@@ -123,6 +124,7 @@ export function describeError(error: unknown): string {
     const code = error.code ? ` [${error.code}]` : '';
     return `relay error: HTTP ${error.status}${code} ${error.message}`;
   }
-  if (error instanceof Error) return error.message;
-  return String(error);
+  // §4.5 unified surface: protocol/crypto failures carry their
+  // taxonomy code (`MALFORMED: …`, `DECRYPTION_FAILED: …`).
+  return formatErrorLine(error);
 }

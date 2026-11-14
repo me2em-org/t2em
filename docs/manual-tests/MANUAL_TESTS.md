@@ -148,6 +148,63 @@ D1/D2 — против живого прод-релея; D3 — из корня 
 
 ---
 
+## I. Доработки ТЗ v2.1 (P0–P2, разделы выше — v1.0 база)
+
+### I.1 Fingerprint 16 символов (§4.2.1)
+
+| # | Шаг | Ожидание |
+|---|-----|----------|
+| I1 | `t2em-cli keygen --out /tmp/a.key` → stderr | строка `fingerprint: <16 символов base64url>` ✅ |
+| I2 | `echo s \| t2em-cli push --to <pubkey>` → stderr | `fingerprint: <16 символов>` получателя; URL без `#fragment` |
+| I3 | MCP `t2em_keygen` | `key_id` — 16 символов |
+
+### I.2 Keyfile §8.2 (v2.1 формат)
+
+| # | Шаг | Ожидание |
+|---|-----|----------|
+| I4 | `cat /tmp/a.key` | поля `version:1, type:"x25519", privateKey, publicKey, createdAt, fingerprint(16)`; права 0600 |
+| I5 | Сплайсинг: заменить `fingerprint` на `0…0`, `t2em-cli pull … --key /tmp/a.key` | отказ: `MALFORMED: keyfile fingerprint mismatch …`, exit 1 |
+| I6 | Legacy-файл `{v:1, kind:"t2em-x25519-key-v1", privateKey, publicKey}` | `pull --key` работает (format legacy); Python `load_keyfile` — то же |
+| I7 | Python: `write_keyfile()` → `load_keyfile()` | формат §8.2, `format="current"`, fingerprint совпадает; TS↔PY файлы взаимозаменяемы |
+
+### I.3 Фасад §3.6 и cross-mode (§4.5)
+
+| # | Шаг | Ожидание |
+|---|-----|----------|
+| I8 | TS: `unpackDrop(modeAEnvelope, {mode:'sym', symKey})` | ошибка `MALFORMED: envelope mode 'x25519' does not match options mode 'sym'` |
+| I9 | Python: `unpack_drop(modeBEnvelope, {"mode":"x25519", ...})` | `ProtocolError MALFORMED` (то же в обратную сторону) |
+| I10 | sym-конверт с полем `ephemeralPubKey` → `validateEnvelope` | `MALFORMED` (negative-вектор `neg-sym-with-ephemeral`) |
+
+### I.4 CLI `pull --newline` (§8.2 fix #11)
+
+| # | Шаг | Ожидание |
+|---|-----|----------|
+| I11 | `t2em-cli pull <url> > out` ; `wc -c out` | байт-точный размер plaintext (без добавленного `\n`) |
+| I12 | `t2em-cli pull <url> --newline > out` | размер +1 (один `\n` в конце); `--newline --newline` → exit 2 |
+
+### I.5 Единая поверхность ошибок (§4.5)
+
+| # | Шаг | Ожидание |
+|---|-----|----------|
+| I13 | `pull --key` на битый ключ GCM | stderr: `DECRYPTION_FAILED: …`, exit 1 |
+| I14 | MCP `t2em_pull` c битым конвертом/ключом | isError-текст начинается с кода таксономии (`MALFORMED: `, `DECRYPTION_FAILED: `) |
+| I15 | MCP `t2em_pull {url, keyfile_path}` на sym-конверт | ошибка: `'sym', but a Mode A keyfile was given` |
+
+### I.6 MCP `keyfile_path`
+
+| # | Шаг | Ожидание |
+|---|-----|----------|
+| I16 | `t2em_push` c `recipient_pubkey` из keyfile → `t2em_pull {url, keyfile_path}` | `secret_handle` получен; ключ не остаётся в vault |
+| I17 | keyfile со сплайснутым fingerprint | isError, текст `MALFORMED: keyfile fingerprint mismatch` |
+
+### I.7 Abuse-лимиты (P0, §5.1) — прод
+
+| # | Шаг | Ожидание |
+|---|-----|----------|
+| I18 | Параллельный берст 14×5 POST `/api/v1/drop` | среди ответов есть `429` с `X-RateLimit-Limit: 30` и `Retry-After` |
+
+---
+
 ## Приложение. Контракт, на который опирается чек-лист
 
 - TTL-клип: **60..900 c** (меньше/больше → отказ на входе).
@@ -157,5 +214,5 @@ D1/D2 — против живого прод-релея; D3 — из корня 
   конвертом (`<script type="application/json" id="t2em-envelope">`), повтор — 404.
 - DELETE `/api/v1/drop/:id` c `x-delete-token`: 401 нет токена / 403 неверный / 200 удалён / далее 404.
 - HKDF info (freeze §4.5): `me2em/crypto/v1/t2em-drop`; salt Mode A = `eph_pub || recipient_pub`.
-- Fingerprint: `base64url(sha256(pubkey))[0..8]` (§4.2.1).
+- Fingerprint: `base64url(sha256(pubkey))[0..16]` — 16 символов, 96 бит (§4.2.1, ТЗ v2.1).
 - Источник истины по API: `docs/TZ_t2em.md` §5, §8.2–§8.4; векторы: `vectors/t2em-drop.v1.json`.

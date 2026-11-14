@@ -10,7 +10,6 @@ export {
   keygenToFile,
   loadKeyFile,
   type KeyFileJson,
-  type LegacyKeyFileJson,
   type LoadedKey,
 } from './keys.js';
 export { describeError, runDelete, runKeygen, runPull, runPush, type CommandDeps, type Io } from './commands.js';

@@ -1,38 +1,37 @@
 /**
  * X25519 keyfile for Mode A (ТЗ §8.2, format «уточнено» in v2.1).
  *
- * Current (§8.2) file format — JSON, UTF-8, written with 0600:
+ * File I/O + generation live here; payload VALIDATION is single-sourced
+ * in `@t2em/protocol` (`parseKeyFileJson`) so the CLI, MCP server and
+ * any other client accept exactly the same files:
+ *
  *   { "version": 1, "type": "x25519",
  *     "privateKey": "<base64url 32B>", "publicKey": "<base64url 32B>",
  *     "createdAt": "<ISO-8601 Z, seconds precision>",
  *     "fingerprint": "<16-char base64url, §4.2.1>" }
  *
- * Legacy format (pre-v2.1) is still READ for backward compatibility:
- *   { "v": 1, "kind": "t2em-x25519-key-v1", privateKey, publicKey }
- *
- * The new format self-verifies: on load, the stored `fingerprint` is
- * recomputed from `publicKey` and must match — a corrupted or spliced
- * keyfile fails closed instead of silently sealing to the wrong key.
+ * Legacy (pre-v2.1) `v`/`kind` files are still read (format 'legacy').
+ * The current format self-verifies on load — a spliced fingerprint
+ * fails closed.
  *
  * The private key material is wiped two-pass after use (§4.4).
  */
 import { chmodSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { generateX25519KeyPair, secureWipeMultiple } from '@me2em/crypto';
 import {
-  b64uDecodeStrict,
   b64uEncode,
   fingerprintPubKeyB64u,
+  parseKeyFileJson,
+  KEYFILE_VERSION,
+  KEYFILE_TYPE,
+  KEYFILE_KIND,
   type Fingerprint,
+  type ParsedKeyFile,
 } from '@t2em/protocol';
 
-/** §8.2 fixed format constants. */
-export const KEYFILE_VERSION = 1;
-export const KEYFILE_TYPE = 'x25519';
-/** Legacy (pre-v2.1) kind marker — read for compatibility, never written. */
-export const KEYFILE_KIND = 't2em-x25519-key-v1';
-export const X25519_KEY_BYTES = 32;
+// §8.2 constants are single-sourced in @t2em/protocol.
+export { KEYFILE_VERSION, KEYFILE_TYPE, KEYFILE_KIND };
 
-/** §8.2 keyfile shape (current). */
 export interface KeyFileJson {
   version: 1;
   type: typeof KEYFILE_TYPE;
@@ -44,26 +43,7 @@ export interface KeyFileJson {
   fingerprint: Fingerprint;
 }
 
-/** Legacy keyfile shape (pre-v2.1, read-only compatibility). */
-export interface LegacyKeyFileJson {
-  v: 1;
-  kind: typeof KEYFILE_KIND;
-  privateKey: string;
-  publicKey: string;
-}
-
-export interface LoadedKey {
-  privateKey: Uint8Array;
-  publicKey: Uint8Array;
-  /** Format marker: 'current' (§8.2) or 'legacy' (pre-v2.1). */
-  format: 'current' | 'legacy';
-}
-
-function validateKeys(privateKey: Uint8Array, publicKey: Uint8Array): void {
-  if (privateKey.length !== X25519_KEY_BYTES || publicKey.length !== X25519_KEY_BYTES) {
-    throw new Error(`keyfile keys must be ${X25519_KEY_BYTES} bytes`);
-  }
-}
+export type LoadedKey = ParsedKeyFile;
 
 /** ISO-8601 UTC with seconds precision (§8.2 example). */
 function nowIsoSeconds(): string {
@@ -76,26 +56,22 @@ export async function keygenToFile(
   warn: (line: string) => void = () => undefined,
 ): Promise<string> {
   const pair = generateX25519KeyPair();
-  let fingerprint: Fingerprint;
   try {
-    const privateKey = pair.privateKey;
-    const publicKey = pair.publicKey;
-    fingerprint = await fingerprintPubKeyB64u(b64uEncode(publicKey));
+    const publicKey = b64uEncode(pair.publicKey);
     const json: KeyFileJson = {
       version: KEYFILE_VERSION,
       type: KEYFILE_TYPE,
-      privateKey: b64uEncode(privateKey),
-      publicKey: b64uEncode(publicKey),
+      privateKey: b64uEncode(pair.privateKey),
+      publicKey,
       createdAt: nowIsoSeconds(),
-      fingerprint,
+      fingerprint: await fingerprintPubKeyB64u(publicKey),
     };
     // mode in writeFileSync is umask-dependent — chmod explicitly (§8.2).
     writeFileSync(outPath, JSON.stringify(json, null, 2) + '\n', { mode: 0o600 });
     chmodSync(outPath, 0o600);
     warnWiderPermissions(outPath, warn);
-    return b64uEncode(publicKey);
+    return publicKey;
   } finally {
-    // The KeyObject pair lives in @me2em/crypto — wipe our encoded copy.
     secureWipeMultiple(pair.privateKey);
   }
 }
@@ -103,46 +79,21 @@ export async function keygenToFile(
 /**
  * Load a keyfile: §8.2 current format (fingerprint self-verified) or
  * the pre-v2.1 legacy format (accepted, marked 'legacy'). Warns when
- * permissions are wider than 0600 (§8.2).
+ * permissions are wider than 0600 (§8.2). Validation errors carry the
+ * §4.5 code (`MALFORMED: …`) from `parseKeyFileJson`.
  */
 export async function loadKeyFile(
   path: string,
   warn: (line: string) => void = () => undefined,
 ): Promise<LoadedKey> {
   warnWiderPermissions(path, warn);
-  let json: (KeyFileJson | LegacyKeyFileJson) & Record<string, unknown>;
+  let payload: unknown;
   try {
-    json = JSON.parse(readFileSync(path, 'utf8'));
+    payload = JSON.parse(readFileSync(path, 'utf8'));
   } catch {
     throw new Error(`keyfile is not valid JSON: ${path}`);
   }
-
-  if (json.version === KEYFILE_VERSION && json.type === KEYFILE_TYPE) {
-    const current = json as unknown as KeyFileJson;
-    const privateKey = b64uDecodeStrict(current.privateKey);
-    const publicKey = b64uDecodeStrict(current.publicKey);
-    validateKeys(privateKey, publicKey);
-    // Self-verification (§8.2): the stored fingerprint must match the
-    // recomputed fingerprint of the public key.
-    const recomputed = await fingerprintPubKeyB64u(current.publicKey);
-    if (current.fingerprint !== recomputed) {
-      throw new Error(
-        `keyfile fingerprint mismatch: stored ${current.fingerprint}, recomputed ${recomputed}`,
-      );
-    }
-    return { privateKey, publicKey, format: 'current' };
-  }
-
-  if (json.v === 1 && json.kind === KEYFILE_KIND) {
-    const legacy = json as unknown as LegacyKeyFileJson;
-    const privateKey = b64uDecodeStrict(legacy.privateKey);
-    const publicKey = b64uDecodeStrict(legacy.publicKey);
-    validateKeys(privateKey, publicKey);
-    return { privateKey, publicKey, format: 'legacy' };
-  }
-
-  const kind = String(json.kind ?? json.type ?? '<none>');
-  throw new Error(`unsupported keyfile kind: ${kind}`);
+  return parseKeyFileJson(payload);
 }
 
 function warnWiderPermissions(path: string, warn: (line: string) => void): void {
