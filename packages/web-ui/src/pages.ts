@@ -195,7 +195,9 @@ export function renderAgentsPage(): string {
 
 <section class="card">
   <h2>3. Python SDK (recommended for agents with a sandbox)</h2>
-<pre><code>pip install "t2em @ git+https://github.com/me2em-org/t2em#subdirectory=python-sdk"</code></pre>
+<pre><code>pip install t2em          # from PyPI (0.6.0)
+# or from source:
+pip install "t2em @ git+https://github.com/me2em-org/t2em#subdirectory=python-sdk"</code></pre>
 <pre><code>import json, urllib.request
 from t2em import unpack_drop, validate_envelope
 
