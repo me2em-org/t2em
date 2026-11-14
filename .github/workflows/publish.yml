@@ -1,0 +1,79 @@
+# Release publishing via Trusted Publishing (OIDC) — no tokens, no OTP.
+# Docs: docs.npmjs.com/trusted-publishers
+#
+# One-time prereqs (npm UI, per package, right before the release —
+# a binding expires if the first publish does not happen within 2 days):
+#   Package settings → Trusted publisher:
+#     Organization or user: me2em-org
+#     Repository:           t2em
+#     Workflow filename:    publish.yml
+#     Allowed actions:      allow "npm publish" (direct publish)
+# The account can keep "Require 2FA for write actions" fully on:
+# trusted publishing is independent of tokens and does not need OTP.
+#
+# PyPI job uses the same OIDC mechanism (pypi.org → project t2em →
+# add trusted publisher me2em-org/t2em + workflow publish.yml).
+name: publish
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+concurrency:
+  group: publish-production
+  cancel-in-progress: false
+
+jobs:
+  npm:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write # OIDC — the critical requirement for trusted publishing
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          registry-url: 'https://registry.npmjs.org'
+      - name: Enable pnpm
+        env:
+          COREPACK_ENABLE_DOWNLOAD_PROMPT: '0'
+        run: corepack enable
+      - name: Install and build
+        run: |
+          corepack pnpm install --frozen-lockfile
+          corepack pnpm -r build
+      - name: Pack and publish @me2em/t2em-* (protocol → cli → mcp-server)
+        run: |
+          set -euo pipefail
+          STAGE="${RUNNER_TEMP}/stage"
+          mkdir -p "$STAGE"
+          for n in protocol cli mcp-server; do
+            (cd "packages/$n" && corepack pnpm pack --pack-destination "$STAGE" >/dev/null)
+            tgz=$(ls "$STAGE"/me2em-t2em-"$n"-*.tgz)
+            mkdir -p "$STAGE/$n"
+            tar -xzf "$tgz" -C "$STAGE/$n"
+            (cd "$STAGE/$n/package" && npm publish --access public)
+          done
+
+  pypi:
+    continue-on-error: true # remove after the PyPI trusted-publisher binding is configured
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Build sdist + wheel
+        run: |
+          python -m pip install --upgrade build
+          (cd python-sdk && python -m build)
+      - name: Publish t2em to PyPI (trusted publishing)
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: python-sdk/dist
