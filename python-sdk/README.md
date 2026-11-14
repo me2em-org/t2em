@@ -10,7 +10,7 @@ key.
 ## Install
 
 ```bash
-pip install t2em          # from PyPI (when published)
+pip install t2em          # from PyPI
 pip install -e .          # from this repo (editable, dev)
 ```
 
