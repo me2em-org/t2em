@@ -1,4 +1,4 @@
-# @me2em/protocol
+# @me2em/t2em-protocol
 
 Cryptographic core of [t2em.com](https://t2em.com) — Zero-Knowledge
 Token Transfer (Blind Relay).

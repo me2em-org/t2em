@@ -7,7 +7,7 @@
  *
  * The client JS is embedded as a plain string — it must therefore
  * contain no backslashes, no backticks and no `${` sequences. The
- * Mode B crypto below replicates `@me2em/protocol` `packDropSym` /
+ * Mode B crypto below replicates `@me2em/t2em-protocol` `packDropSym` /
  * `unpackDropSym` bit-for-bit on raw WebCrypto (AES-256-GCM, 32B key,
  * 12B IV, no AAD — verified by test/client-crypto.test.ts).
  */

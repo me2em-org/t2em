@@ -1,5 +1,5 @@
 /**
- * @me2em/protocol — cryptographic core of t2em.com.
+ * @me2em/t2em-protocol — cryptographic core of t2em.com.
  *
  * Protocol v1 constants and envelope shapes (ТЗ docs/TZ_t2em.md §4).
  * Implementation of the envelope algorithms lands in Этап 1–2;

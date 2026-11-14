@@ -1,4 +1,4 @@
-# @me2em/mcp-server
+# @me2em/t2em-mcp-server
 
 MCP server for [t2em.com](https://t2em.com) — lets Claude Code / Cursor /
 Windsurf push and pull zero-knowledge drops without exposing secrets to
@@ -27,7 +27,7 @@ the LLM context (ТЗ `docs/TZ_t2em.md` §8.4).
 ## Install / wire into the agent
 
 ```bash
-npm install -g @me2em/mcp-server
+npm install -g @me2em/t2em-mcp-server
 ```
 
 ```json

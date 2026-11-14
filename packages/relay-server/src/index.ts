@@ -1,5 +1,5 @@
 /**
- * Public surface of `@me2em/relay-server`.
+ * Public surface of `@me2em/t2em-relay-server`.
  * (The binary entries `worker.ts` / `node.ts` are wired by deploy tooling.)
  */
 export { createApp, type AppDeps } from './app.js';

@@ -8,7 +8,7 @@ import { chmodSync, mkdtempSync, readFileSync, statSync, writeFileSync } from 'n
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { b64uEncode } from '@me2em/protocol';
+import { b64uEncode } from '@me2em/t2em-protocol';
 import { KEYFILE_KIND, KEYFILE_TYPE, KEYFILE_VERSION, keygenToFile, loadKeyFile } from '../src/keys.js';
 
 function tmp(): string {
@@ -35,7 +35,7 @@ describe('keyfile §8.2 format (v2.1)', () => {
     expect(payload.publicKey).toBe(publicKey);
     expect(String(payload.createdAt)).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/);
     expect(payload.fingerprint).toHaveLength(16);
-    expect(payload.fingerprint).toBe(await (await import('@me2em/protocol')).fingerprintPubKeyB64u(publicKey));
+    expect(payload.fingerprint).toBe(await (await import('@me2em/t2em-protocol')).fingerprintPubKeyB64u(publicKey));
 
     const loaded = await loadKeyFile(path);
     expect(loaded.format).toBe('current');

@@ -12,7 +12,7 @@ import {
   b64uDecodeStrict,
   MAX_TTL_SECONDS,
   MIN_TTL_SECONDS,
-} from '@me2em/protocol';
+} from '@me2em/t2em-protocol';
 
 export type CommandName = 'push' | 'pull' | 'keygen' | 'delete';
 
