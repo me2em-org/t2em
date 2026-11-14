@@ -7,7 +7,7 @@
  * `type="application/json"` data, HTML-escaped against `</script>`
  * breakout (§11.4 injection hygiene).
  */
-import type { Envelope } from '@t2em/protocol';
+import type { Envelope } from '@me2em/protocol';
 
 /**
  * Embed JSON inside a `<script type="application/json">` block:

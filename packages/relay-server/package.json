@@ -1,5 +1,5 @@
 {
-  "name": "@t2em/relay-server",
+  "name": "@me2em/relay-server",
   "version": "0.1.0",
   "private": true,
   "description": "Blind Relay of t2em.com: Hono app shared by Cloudflare Workers (worker.ts) and self-hosted Node (node.ts) entries",
@@ -30,8 +30,8 @@
   "dependencies": {
     "@hono/node-server": "^2.1.0",
     "@me2em/crypto": "1.1.0-rc.2",
-    "@t2em/protocol": "workspace:^",
-    "@t2em/web-ui": "workspace:^",
+    "@me2em/protocol": "workspace:^",
+    "@me2em/web-ui": "workspace:^",
     "@upstash/redis": "^1.41.0",
     "hono": "^4.13.0"
   },

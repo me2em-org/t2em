@@ -1,5 +1,5 @@
 /**
- * `@t2em/web-ui` — embedded browser UI (vanilla TS, no framework).
+ * `@me2em/web-ui` — embedded browser UI (vanilla TS, no framework).
  *
  * Этап 1D: full Mode B browser flow — create page (`/`), decrypt page
  * (`/s/:id`, envelope embedded as JSON data), static assets. The

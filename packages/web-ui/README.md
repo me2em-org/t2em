@@ -1,4 +1,4 @@
-# @t2em/web-ui
+# @me2em/web-ui
 
 Embedded browser UI of [t2em.com](https://t2em.com) (ТЗ §3.2).
 

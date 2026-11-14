@@ -1,5 +1,5 @@
 {
-  "name": "@t2em/protocol",
+  "name": "@me2em/protocol",
   "version": "0.1.0",
   "description": "Cryptographic core of t2em.com: Mode A (X25519) and Mode B (#fragment) drop envelopes on @me2em/crypto primitives",
   "type": "module",

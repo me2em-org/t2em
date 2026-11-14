@@ -11,9 +11,9 @@
 import { mkdtempSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createApp, InMemoryRelayStorage } from '@t2em/relay-server';
+import { createApp, InMemoryRelayStorage } from '@me2em/relay-server';
 import { generateX25519KeyPair } from '@me2em/crypto';
-import { b64uEncode, fingerprintPubKeyB64u } from '@t2em/protocol';
+import { b64uEncode, fingerprintPubKeyB64u } from '@me2em/protocol';
 import { describe, expect, it } from 'vitest';
 import { RelayClient, parseShareUrl, type FetchLike } from '../src/client.js';
 import { HttpError } from '../src/errors.js';

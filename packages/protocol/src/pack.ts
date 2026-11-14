@@ -1,7 +1,7 @@
 /**
  * Fixed public-API facade (ТЗ v2.1 §3.6): `packDrop` / `unpackDrop`.
  *
- * §3.6 pins the @t2em/protocol API — integrators (CLI, SDK, MCP, Web
+ * §3.6 pins the @me2em/protocol API — integrators (CLI, SDK, MCP, Web
  * UI) dispatch through exactly these functions instead of touching the
  * per-mode primitives directly. The facade also enforces the §4.5
  * cross-mode contract: an envelope passed with the WRONG mode option

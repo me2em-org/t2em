@@ -1,5 +1,5 @@
 {
-  "name": "@t2em/cli",
+  "name": "@me2em/cli",
   "version": "0.1.0",
   "description": "t2em-cli — command line client for t2em.com (push/pull/keygen/delete, UNIX pipes, ТЗ §8.2)",
   "type": "module",
@@ -36,10 +36,10 @@
   },
   "dependencies": {
     "@me2em/crypto": "1.1.0-rc.2",
-    "@t2em/protocol": "workspace:^"
+    "@me2em/protocol": "workspace:^"
   },
   "devDependencies": {
-    "@t2em/relay-server": "workspace:^",
+    "@me2em/relay-server": "workspace:^",
     "@types/node": "^24.0.0",
     "typescript": "^5.6.0",
     "vitest": "^5.1.0"

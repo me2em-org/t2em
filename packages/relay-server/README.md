@@ -1,4 +1,4 @@
-# @t2em/relay-server
+# @me2em/relay-server
 
 Blind Relay of [t2em.com](https://t2em.com) — the server that stores
 opaque envelopes without ever seeing plaintext (ТЗ §3, §6).

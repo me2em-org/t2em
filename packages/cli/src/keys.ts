@@ -2,7 +2,7 @@
  * X25519 keyfile for Mode A (ТЗ §8.2, format «уточнено» in v2.1).
  *
  * File I/O + generation live here; payload VALIDATION is single-sourced
- * in `@t2em/protocol` (`parseKeyFileJson`) so the CLI, MCP server and
+ * in `@me2em/protocol` (`parseKeyFileJson`) so the CLI, MCP server and
  * any other client accept exactly the same files:
  *
  *   { "version": 1, "type": "x25519",
@@ -27,9 +27,9 @@ import {
   KEYFILE_KIND,
   type Fingerprint,
   type ParsedKeyFile,
-} from '@t2em/protocol';
+} from '@me2em/protocol';
 
-// §8.2 constants are single-sourced in @t2em/protocol.
+// §8.2 constants are single-sourced in @me2em/protocol.
 export { KEYFILE_VERSION, KEYFILE_TYPE, KEYFILE_KIND };
 
 export interface KeyFileJson {

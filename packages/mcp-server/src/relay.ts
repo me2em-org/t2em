@@ -2,11 +2,11 @@
  * Minimal relay client for the MCP server (ТЗ §5).
  *
  * Same JSON contract as the CLI's client, deliberately independent of
- * `@t2em/cli` — the ТЗ dependency rule keeps `@t2em/*` packages
+ * `@me2em/cli` — the ТЗ dependency rule keeps `@me2em/*` packages
  * independent of each other. Transport is injectable so tests run the
  * tools against the real Hono relay app without sockets.
  */
-import type { Envelope } from '@t2em/protocol';
+import type { Envelope } from '@me2em/protocol';
 
 /** Same shape as the CLI `FetchLike` — Hono `app.request` matches it. */
 export type FetchLike = (input: string, init?: RequestInit) => Promise<Response>;

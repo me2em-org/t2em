@@ -18,7 +18,7 @@ export interface CreatedDrop {
 
 /** Envelope shape as stored by the relay (opaque to the transport) —
  *  the canonical protocol type, re-exported for one source of truth. */
-import type { Envelope } from '@t2em/protocol';
+import type { Envelope } from '@me2em/protocol';
 export type WireEnvelope = Envelope;
 
 /** A share URL split into its relay id and the secret #fragment. */
