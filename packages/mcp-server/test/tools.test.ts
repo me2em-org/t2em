@@ -159,7 +159,7 @@ describe('t2em MCP server over the real relay app (ТЗ §8.4)', () => {
     const key = await call(rig, 't2em_keygen');
     expect(key.isError).toBeFalsy();
     expect(key.json.public_key).toMatch(/^[A-Za-z0-9_-]{43}$/);
-    expect(key.json.key_id).toMatch(/^[A-Za-z0-9_-]{8}$/); // fingerprint §4.2.1
+    expect(key.json.key_id).toMatch(/^[A-Za-z0-9_-]{16}$/); // fingerprint §4.2.1 (16 chars)
     expect(key.text).not.toMatch(/priv/); // privkey never surfaces in any tool output
 
     const pushed = await call(rig, 't2em_push', {

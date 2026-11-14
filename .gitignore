@@ -61,3 +61,7 @@ vite.config.ts.timestamp-*
 
 # NOTE: unlike me2em-protocol, docs/ is NOT ignored here:
 # docs/ holds the source TZ documents (TZ_t2em.md, TZ_we2em.md).
+
+# Python bytecode
+__pycache__/
+*.pyc

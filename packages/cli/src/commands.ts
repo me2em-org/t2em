@@ -74,7 +74,7 @@ export async function runPull(options: Extract<CommandOptions, { command: 'pull'
       io.stderr(`relay envelope is '${envelope.mode}', but a Mode A keyfile was given`);
       return 1;
     }
-    const key = loadKeyFile(options.key, io.stderr);
+    const key = await loadKeyFile(options.key, io.stderr);
     try {
       if (envelope.senderPubKey !== undefined) {
         io.stderr(await fingerprintLine(envelope.senderPubKey)); // §4.2.1
@@ -91,11 +91,14 @@ export async function runPull(options: Extract<CommandOptions, { command: 'pull'
     plaintext = await unpackDropSym(envelope, fragment as string);
   }
   io.stdout(plaintext);
+  // §8.2 (v2.1 fix #11): --newline appends exactly one LF for $(...)
+  // use cases; default output stays byte-exact.
+  if (options.newline) io.stdout(new Uint8Array([0x0a]));
   return 0;
 }
 
 export async function runKeygen(options: Extract<CommandOptions, { command: 'keygen' }>, io: Io, _deps: CommandDeps): Promise<number> {
-  const publicKeyB64u = keygenToFile(options.out, io.stderr);
+  const publicKeyB64u = await keygenToFile(options.out, io.stderr);
   io.stderr(await fingerprintLine(publicKeyB64u));
   io.stderr(`keyfile written: ${options.out} (0600) — share the pubkey, never the file`);
   io.stdout(encodeUtf8(publicKeyB64u));

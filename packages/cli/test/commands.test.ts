@@ -69,12 +69,12 @@ describe('CLI commands over the real relay app (ТЗ §8.2 journeys)', () => {
     expect(push.err.join('\n')).toMatch(/drop [0-9a-f-]{36} expires in 120s/);
 
     const pull = makeRig(t, '');
-    expect(await runPull({ command: 'pull', url, key: undefined }, pull.io, pull.deps)).toBe(0);
+    expect(await runPull({ command: 'pull', url, key: undefined, newline: false }, pull.io, pull.deps)).toBe(0);
     expect(pull.bytes().toString('utf8')).toBe(secret);
 
     const again = makeRig(t, '');
     const message = await expectHttpError(
-      runPull({ command: 'pull', url, key: undefined }, again.io, again.deps),
+      runPull({ command: 'pull', url, key: undefined, newline: false }, again.io, again.deps),
       404,
     );
     expect(message).toContain('not found, expired or already consumed');
@@ -100,7 +100,7 @@ describe('CLI commands over the real relay app (ТЗ §8.2 journeys)', () => {
     expect(push.err.join('\n')).toContain(`fingerprint: ${await fingerprintPubKeyB64u(pubB64u)}`);
 
     const pull = makeRig(t, '');
-    expect(await runPull({ command: 'pull', url, key: keyPath }, pull.io, pull.deps)).toBe(0);
+    expect(await runPull({ command: 'pull', url, key: keyPath, newline: false }, pull.io, pull.deps)).toBe(0);
     expect(pull.bytes().toString('utf8')).toBe(secret);
   });
 
@@ -115,7 +115,7 @@ describe('CLI commands over the real relay app (ТЗ §8.2 journeys)', () => {
     const url = push.text();
 
     const pull = makeRig(t, '');
-    expect(await runPull({ command: 'pull', url, key: keyPath }, pull.io, pull.deps)).toBe(1);
+    expect(await runPull({ command: 'pull', url, key: keyPath, newline: false }, pull.io, pull.deps)).toBe(1);
     expect(pull.err.join('\n')).toContain("envelope is 'sym'");
   });
 
@@ -155,7 +155,7 @@ describe('CLI commands over the real relay app (ТЗ §8.2 journeys)', () => {
     const t = makeTransport();
     const url = `https://test.local/s/${crypto.randomUUID()}#aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa`;
     const message = await expectHttpError(
-      runPull({ command: 'pull', url, key: undefined }, makeRig(t, '').io, t.deps),
+      runPull({ command: 'pull', url, key: undefined, newline: false }, makeRig(t, '').io, t.deps),
       404,
     );
     expect(message).toContain('not found, expired or already consumed');
@@ -169,5 +169,28 @@ describe('CLI commands over the real relay app (ТЗ §8.2 journeys)', () => {
       await runPush({ command: 'push', ttl: 60, to: b64uEncode(pair.publicKey) }, rig.io, rig.deps),
     ).toBe(0);
     expect(rig.text()).not.toContain('#');
+  });
+});
+
+describe('pull --newline (§8.2 v2.1 fix #11)', () => {
+  it('appends exactly one LF when given; byte-exact without it', async () => {
+    const t = makeTransport();
+    const secret = 'no-trailing-newline';
+    // Two separate drops — a burn drop reads exactly once (§5.3).
+    const pushPlain = makeRig(t, secret);
+    await runPush({ command: 'push', ttl: 300, to: undefined }, pushPlain.io, pushPlain.deps);
+    const urlPlain = pushPlain.text();
+
+    const pushLf = makeRig(t, secret);
+    await runPush({ command: 'push', ttl: 300, to: undefined }, pushLf.io, pushLf.deps);
+    const urlLf = pushLf.text();
+
+    const plain = makeRig(t, '');
+    expect(await runPull({ command: 'pull', url: urlPlain, key: undefined, newline: false }, plain.io, plain.deps)).toBe(0);
+    expect(plain.bytes().toString('utf8')).toBe(secret);
+
+    const withLf = makeRig(t, '');
+    expect(await runPull({ command: 'pull', url: urlLf, key: undefined, newline: true }, withLf.io, withLf.deps)).toBe(0);
+    expect(withLf.bytes().toString('utf8')).toBe(`${secret}\n`);
   });
 });

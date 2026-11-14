@@ -85,7 +85,7 @@ export function createT2emServer(options: T2emServerOptions = {}): McpServer {
     't2em_keygen',
     {
       description:
-        'Generate an X25519 keypair for Mode A drops. The private key never leaves the in-process vault; share public_key out-of-band after verifying its 8-char fingerprint.',
+        'Generate an X25519 keypair for Mode A drops. The private key never leaves the in-process vault; share public_key out-of-band after verifying its 16-char fingerprint.',
       inputSchema: {},
     },
     async () => {

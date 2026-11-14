@@ -17,6 +17,8 @@ from .protocol import GCM_TAG_BYTES, IV_BYTES, T2EM_PROTOCOL_VERSION, X25519_KEY
 
 MAX_IV_BYTES = IV_BYTES
 MAX_EPHEMERAL_PUBKEY_BYTES = X25519_KEY_BYTES
+MAX_ED25519_SIG_BYTES = 64
+MAX_ED25519_PUBKEY_BYTES = 32
 
 
 @dataclass(frozen=True)
@@ -34,22 +36,34 @@ class ModeBEnvelope:
 
 @dataclass(frozen=True)
 class ModeAEnvelope:
-    """Mode A — asymmetric E2EE on X25519 (ТЗ §4.2)."""
+    """Mode A — asymmetric E2EE on X25519 (ТЗ §4.2).
+
+    Optional Ed25519 sender fields (§5.2): ``sender_signature`` (64B
+    base64url) and ``sender_pubkey`` (32B base64url), preserved on
+    validation — TS and Python must agree bit-for-bit (§4.5 vectors).
+    """
 
     ephemeral_pubkey: str
     ciphertext: str
     iv: str
     mode: str = "x25519"
     v: int = T2EM_PROTOCOL_VERSION
+    sender_signature: str | None = None
+    sender_pubkey: str | None = None
 
     def to_dict(self) -> Dict[str, Any]:
-        return {
+        out: Dict[str, Any] = {
             "v": self.v,
             "mode": self.mode,
             "ephemeralPubKey": self.ephemeral_pubkey,
             "ciphertext": self.ciphertext,
             "iv": self.iv,
         }
+        if self.sender_signature is not None:
+            out["senderSignature"] = self.sender_signature
+        if self.sender_pubkey is not None:
+            out["senderPubKey"] = self.sender_pubkey
+        return out
 
 
 Envelope = Union[ModeAEnvelope, ModeBEnvelope]
@@ -95,6 +109,18 @@ def validate_envelope(value: Any) -> Envelope:
 
     mode = v.get("mode")
     if mode == "sym":
+        # §4.5 negative contract: a sym envelope carrying Mode A fields
+        # is malformed (cross-mode confusion, §4.5 vectors).
+        if (
+            v.get("ephemeralPubKey") is not None
+            or v.get("senderSignature") is not None
+            or v.get("senderPubKey") is not None
+        ):
+            raise ProtocolError(
+                "MALFORMED",
+                "sym envelope must not carry Mode A fields "
+                "(ephemeralPubKey/senderSignature/senderPubKey)",
+            )
         return ModeBEnvelope(ciphertext=ciphertext, iv=iv)
 
     if mode == "x25519":
@@ -104,7 +130,25 @@ def validate_envelope(value: Any) -> Envelope:
                 "MALFORMED",
                 f"ephemeralPubKey must be base64url of exactly {MAX_EPHEMERAL_PUBKEY_BYTES} bytes",
             )
-        return ModeAEnvelope(ephemeral_pubkey=eph, ciphertext=ciphertext, iv=iv)
+        sig = v.get("senderSignature")
+        if sig is not None and (not isinstance(sig, str) or not is_b64u_of_length(sig, MAX_ED25519_SIG_BYTES)):
+            raise ProtocolError(
+                "MALFORMED",
+                "senderSignature must be base64url of exactly 64 bytes",
+            )
+        spk = v.get("senderPubKey")
+        if spk is not None and (not isinstance(spk, str) or not is_b64u_of_length(spk, MAX_ED25519_PUBKEY_BYTES)):
+            raise ProtocolError(
+                "MALFORMED",
+                "senderPubKey must be base64url of exactly 32 bytes",
+            )
+        return ModeAEnvelope(
+            ephemeral_pubkey=eph,
+            ciphertext=ciphertext,
+            iv=iv,
+            sender_signature=sig,
+            sender_pubkey=spk,
+        )
 
     raise ProtocolError("MALFORMED", f"unknown envelope.mode: {mode!r}")
 
