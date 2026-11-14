@@ -40,5 +40,10 @@
     "@types/node": "^24.0.0",
     "typescript": "^5.6.0",
     "vitest": "^5.1.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/me2em-org/t2em.git",
+    "directory": "packages/relay-server"
   }
 }
