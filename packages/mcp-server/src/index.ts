@@ -1,5 +1,5 @@
 /**
- * `@t2em/mcp-server` — public API (ТЗ §8.4).
+ * `@me2em/mcp-server` — public API (ТЗ §8.4).
  *
  * Этап 0 skeleton fixed the tool registry; Этап 5 implements the six
  * tools on the official MCP SDK (`createT2emServer`). Any new tool

@@ -29,7 +29,7 @@ import {
   MAX_TTL_SECONDS,
   MIN_TTL_SECONDS,
   X25519_KEY_BYTES,
-} from '@t2em/protocol';
+} from '@me2em/protocol';
 import { generateX25519KeyPair, secureWipeMultiple } from '@me2em/crypto';
 import { InMemorySecretVault, isSecretHandle, secureWipe } from './vault.js';
 import { RelayClient, RelayHttpError, type FetchLike } from './relay.js';

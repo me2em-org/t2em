@@ -1,4 +1,4 @@
-/** Programmatic surface of `@t2em/cli` (main.ts is the executable entry). */
+/** Programmatic surface of `@me2em/cli` (main.ts is the executable entry). */
 export { HELP_TEXT, parseArgs, parseOptions, DEFAULT_TTL_SECONDS, type CommandName, type CommandOptions, type ParsedInvocation, type ParsedOptions } from './parse.js';
 export { CLI_VERSION } from './version.js';
 export { RelayClient, parseShareUrl, type CreatedDrop, type FetchLike, type WireEnvelope } from './client.js';

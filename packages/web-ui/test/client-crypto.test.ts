@@ -1,6 +1,6 @@
 /**
  * Bit-compatibility between the browser client (/ui.js WebCrypto path)
- * and `@t2em/protocol` Mode B (ТЗ §4.3).
+ * and `@me2em/protocol` Mode B (ТЗ §4.3).
  *
  * Node ≥ 22 exposes the same WebCrypto as browsers, so these tests
  * replay the exact primitive calls the shipped /ui.js performs and
@@ -16,7 +16,7 @@ import {
   encodeUtf8,
   packDropSym,
   unpackDropSym,
-} from '@t2em/protocol';
+} from '@me2em/protocol';
 
 /** Mirror of the /ui.js create-page crypto (create() in src/assets.ts). */
 async function browserEncrypt(plaintext: string): Promise<{
@@ -50,7 +50,7 @@ async function browserDecrypt(
   return decodeUtf8(new Uint8Array(plaintext));
 }
 
-describe('browser WebCrypto ↔ @t2em/protocol interop (§4.3)', () => {
+describe('browser WebCrypto ↔ @me2em/protocol interop (§4.3)', () => {
   it('decrypts a drop encrypted the way /ui.js does', async () => {
     const { envelope, symKey } = await browserEncrypt('ghp_browser_to_protocol_123');
     const plaintext = await unpackDropSym(envelope, symKey);

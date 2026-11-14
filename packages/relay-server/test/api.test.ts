@@ -8,14 +8,14 @@ import { describe, expect, it } from 'vitest';
 import { createApp, type AppDeps } from '../src/app.js';
 import { InMemoryRelayStorage } from '../src/storage/memory.js';
 import type { RelayStorage } from '../src/storage/types.js';
-import { WEB_UI_CSP } from '@t2em/web-ui';
+import { WEB_UI_CSP } from '@me2em/web-ui';
 import {
   b64uDecodeStrict,
   b64uEncode,
   encodeUtf8,
   sha256Hex,
   type Envelope,
-} from '@t2em/protocol';
+} from '@me2em/protocol';
 
 const UUID_V4_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 

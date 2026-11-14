@@ -9,7 +9,7 @@ import { describe, expect, it } from 'vitest';
 import { UI_ASSETS, UI_JS } from '../src/assets.js';
 import { WEB_UI_CSP } from '../src/index.js';
 import { renderAgentsPage, renderHomePage, renderNotFoundPage, renderOpenPage } from '../src/pages.js';
-import type { Envelope } from '@t2em/protocol';
+import type { Envelope } from '@me2em/protocol';
 
 function symEnvelope(ciphertext = 'A'.repeat(64)): Envelope {
   return { v: 1, mode: 'sym', ciphertext, iv: 'B'.repeat(16) };
