@@ -5,7 +5,7 @@
  * self-hosted production mode uses a RAM-only local Redis instead
  * (`--save "" --appendonly no`, ТЗ §3.4).
  */
-import { RATE_LIMIT_WINDOW_SECONDS, type DropId, type RelayStorage } from './types.js';
+import { type DropId, type RelayStorage } from './types.js';
 
 interface Entry {
   value: string;
@@ -77,10 +77,10 @@ export class InMemoryRelayStorage implements RelayStorage {
     return true; // in-process map — always alive
   }
 
-  async hitRateLimit(bucketKey: string): Promise<number> {
+  async hitRateLimit(bucketKey: string, windowSeconds: number): Promise<number> {
     const key = `ratelimit:${bucketKey}`;
     const now = Date.now();
-    const windowMs = RATE_LIMIT_WINDOW_SECONDS * 1000;
+    const windowMs = windowSeconds * 1000;
     const entry = this.counters.get(key);
     if (InMemoryRelayStorage.expired(entry, now)) {
       this.counters.set(key, { value: '1', expiresAtMs: now + windowMs });
@@ -89,5 +89,14 @@ export class InMemoryRelayStorage implements RelayStorage {
     const next = Number((entry as Entry).value) + 1;
     (entry as Entry).value = String(next);
     return next;
+  }
+
+  async dbsize(): Promise<number | null> {
+    // Count live entries only, mirroring DBSIZE semantics.
+    const now = Date.now();
+    let size = 0;
+    for (const entry of this.data.values()) if (!InMemoryRelayStorage.expired(entry, now)) size++;
+    for (const entry of this.counters.values()) if (!InMemoryRelayStorage.expired(entry, now)) size++;
+    return size;
   }
 }

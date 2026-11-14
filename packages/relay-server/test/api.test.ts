@@ -186,6 +186,87 @@ describe('POST /api/v1/drop (ТЗ §5.2)', () => {
       'PAYLOAD_TOO_LARGE',
     );
   });
+
+  it('rejects envelopes over the field cap with 400 (§5.1, §9.2)', async () => {
+    const app = createApp(deps(new InMemoryRelayStorage()));
+    // Exactly 10 fields (4 valid + 6 unknown) still passes — the cap is
+    // `>`, and validateEnvelope keeps only known fields.
+    const bloated: Record<string, unknown> = { ...symEnvelope() };
+    for (let i = 0; i < 6; i++) bloated[`aux${i}`] = 'x'.repeat(8);
+    const ok = await post(app, { envelope: bloated, ttl: 300 });
+    expect(ok.status).toBe(201);
+
+    const over = await post(app, { envelope: { ...bloated, aux999: 'y' }, ttl: 300 });
+    expect(over.status).toBe(400);
+    expect(((await over.json()) as { error: { code: string } }).error.code).toBe('MALFORMED');
+  });
+
+  it('refuses POST with 503 once the global drop budget is spent (§5.1, §9.5)', async () => {
+    const base = new InMemoryRelayStorage();
+    // Scripted DBSIZE: the app logic under test is the threshold
+    // semantics, not key accounting (the adapters' DBSIZE wire behaviour
+    // is covered in upstash.test.ts / smoke.test.ts). 3 < 4 = under the
+    // 2× ceiling; 4 = at the ceiling.
+    let scriptedSize: number | null = 3;
+    const scripted: RelayStorage = {
+      putDrop: (...a) => base.putDrop(...(a as Parameters<typeof base.putDrop>)),
+      getDrop: (...a) => base.getDrop(...(a as Parameters<typeof base.getDrop>)),
+      consumeDrop: (...a) => base.consumeDrop(...(a as Parameters<typeof base.consumeDrop>)),
+      putDeleteTokenHash: (...a) =>
+        base.putDeleteTokenHash(...(a as Parameters<typeof base.putDeleteTokenHash>)),
+      getDeleteTokenHash: (...a) =>
+        base.getDeleteTokenHash(...(a as Parameters<typeof base.getDeleteTokenHash>)),
+      putBurnMarker: (...a) => base.putBurnMarker(...(a as Parameters<typeof base.putBurnMarker>)),
+      getBurnMarker: (...a) => base.getBurnMarker(...(a as Parameters<typeof base.getBurnMarker>)),
+      destroyDrop: (...a) => base.destroyDrop(...(a as Parameters<typeof base.destroyDrop>)),
+      hitRateLimit: (...a) => base.hitRateLimit(...(a as [string, number])),
+      dbsize: async () => scriptedSize,
+      ping: () => base.ping(),
+    };
+    const app = createApp(deps(scripted, { globalActiveDropsLimit: 2 }));
+
+    const first = await post(app, { envelope: symEnvelope(), ttl: 300 }, '198.51.100.5');
+    expect(first.status).toBe(201); // dbsize 3 < 2×2
+    const { id, delete_token } = (await first.json()) as Created;
+
+    scriptedSize = 4;
+    const second = await post(app, { envelope: symEnvelope(), ttl: 300 }, '198.51.100.5');
+    expect(second.status).toBe(503); // dbsize 4 ≥ 2×2
+    expect(((await second.json()) as { error: { code: string } }).error.code).toBe(
+      'GLOBAL_LIMIT_EXCEEDED',
+    );
+
+    // §9.5 chaos contract: reads and destroys stay 200 when POST is 503.
+    const read = await app.request(`/s/${id}`);
+    expect(read.status).toBe(200);
+    const destroy = await app.request(`/api/v1/drop/${id}`, {
+      method: 'DELETE',
+      headers: { 'x-delete-token': delete_token },
+    });
+    expect(destroy.status).toBe(200);
+  });
+
+  it('fails open when the store cannot answer DBSIZE', async () => {
+    const base = new InMemoryRelayStorage();
+    const blind: RelayStorage = {
+      putDrop: (...a) => base.putDrop(...(a as Parameters<typeof base.putDrop>)),
+      getDrop: (...a) => base.getDrop(...(a as Parameters<typeof base.getDrop>)),
+      consumeDrop: (...a) => base.consumeDrop(...(a as Parameters<typeof base.consumeDrop>)),
+      putDeleteTokenHash: (...a) =>
+        base.putDeleteTokenHash(...(a as Parameters<typeof base.putDeleteTokenHash>)),
+      getDeleteTokenHash: (...a) =>
+        base.getDeleteTokenHash(...(a as Parameters<typeof base.getDeleteTokenHash>)),
+      putBurnMarker: (...a) => base.putBurnMarker(...(a as Parameters<typeof base.putBurnMarker>)),
+      getBurnMarker: (...a) => base.getBurnMarker(...(a as Parameters<typeof base.getBurnMarker>)),
+      destroyDrop: (...a) => base.destroyDrop(...(a as Parameters<typeof base.destroyDrop>)),
+      hitRateLimit: (...a) => base.hitRateLimit(...(a as [string, number])),
+      dbsize: async () => null,
+      ping: () => base.ping(),
+    };
+    const app = createApp(deps(blind, { globalActiveDropsLimit: 1 }));
+    const res = await post(app, { envelope: symEnvelope(), ttl: 300 }, '198.51.100.6');
+    expect(res.status).toBe(201);
+  });
 });
 
 describe('GET /s/:id (ТЗ §5.3)', () => {
@@ -299,7 +380,7 @@ describe('DELETE /api/v1/drop/:id (ТЗ §5.4)', () => {
 
 describe('rate limiting (ТЗ §5.1, §6.1)', () => {
   it('returns 429 with X-RateLimit-* / Retry-After and per-IP isolation', async () => {
-    const app = createApp(deps(new InMemoryRelayStorage(), { rateLimitPerMinute: 2 }));
+    const app = createApp(deps(new InMemoryRelayStorage(), { rateLimitDropPerMinute: 2 }));
 
     await post(app, { envelope: symEnvelope(), ttl: 300 }, '198.51.100.1');
     await post(app, { envelope: symEnvelope(), ttl: 300 }, '198.51.100.1');
@@ -315,16 +396,73 @@ describe('rate limiting (ТЗ §5.1, §6.1)', () => {
     expect(other.status).toBe(201);
   });
 
-  it('hashes the client IP into the rate-limit key (§6.3)', async () => {
+  it('enforces the hourly POST bucket independently of the minute one', async () => {
+    // Minute ceiling high enough to never trip; hour ceiling trips first.
+    const app = createApp(
+      deps(new InMemoryRelayStorage(), { rateLimitDropPerMinute: 1000, rateLimitDropPerHour: 3 }),
+    );
+    for (let i = 0; i < 3; i++) {
+      const res = await post(app, { envelope: symEnvelope(), ttl: 300 }, '198.51.100.3');
+      expect(res.status).toBe(201);
+    }
+    const fourth = await post(app, { envelope: symEnvelope(), ttl: 300 }, '198.51.100.3');
+    expect(fourth.status).toBe(429);
+    expect(fourth.headers.get('x-ratelimit-limit')).toBe('3');
+    // Retry-After points to the end of the hour window, not the minute one.
+    expect(Number(fourth.headers.get('retry-after'))).toBeGreaterThan(1);
+    expect(((await fourth.json()) as { error: { code: string } }).error.code).toBe('RATE_LIMITED');
+  });
+
+  it('keeps POST, GET and DELETE budgets separate (§5.1 per-endpoint)', async () => {
+    const app = createApp(
+      deps(new InMemoryRelayStorage(), { rateLimitFetchPerMinute: 2, rateLimitDeletePerMinute: 1 }),
+    );
+
+    // GET budget exhausts on the 3rd read…
+    const created = await createDrop(app, symEnvelope(), {}, '198.51.100.4');
+    await app.request(`/s/${created.id}`, { headers: { 'x-forwarded-for': '198.51.100.4' } });
+    await app.request(`/s/${created.id}`, { headers: { 'x-forwarded-for': '198.51.100.4' } });
+    const thirdGet = await app.request(`/s/${created.id}`, {
+      headers: { 'x-forwarded-for': '198.51.100.4' },
+    });
+    expect(thirdGet.status).toBe(429);
+    expect(thirdGet.headers.get('x-ratelimit-limit')).toBe('2');
+
+    // …while the same IP's POST budget is untouched.
+    const postRes = await post(app, { envelope: symEnvelope(), ttl: 300 }, '198.51.100.4');
+    expect(postRes.status).toBe(201);
+
+    // DELETE has its own bucket: first call (401, missing token) consumes
+    // it, the second is rate-limited.
+    const noToken = await app.request(`/api/v1/drop/${created.id}`, {
+      method: 'DELETE',
+      headers: { 'x-forwarded-for': '198.51.100.4' },
+    });
+    expect(noToken.status).toBe(401);
+    const delLimited = await app.request(`/api/v1/drop/${created.id}`, {
+      method: 'DELETE',
+      headers: { 'x-forwarded-for': '198.51.100.4' },
+    });
+    expect(delLimited.status).toBe(429);
+    expect(delLimited.headers.get('x-ratelimit-limit')).toBe('1');
+  });
+
+  it('hashes the client IP into the rate-limit keys (§6.3)', async () => {
     const storage = new InMemoryRelayStorage();
     const app = createApp(deps(storage));
     await post(app, { envelope: symEnvelope(), ttl: 300 }, '198.51.100.7');
-    // sha256('198.51.100.7') must be the only ratelimit key material
+    // sha256('198.51.100.7') must be the only ratelimit key material.
+    // One POST fills its minute bucket and its hour bucket (§5.1).
     const expectedHash = await sha256Hex(encodeUtf8('198.51.100.7'));
     const keys = [...storage['counters'].keys()];
-    expect(keys).toHaveLength(1);
-    expect(keys[0].startsWith(`ratelimit:${expectedHash}:`)).toBe(true);
-    expect(keys[0].includes('198.51.100.7')).toBe(false); // never plaintext
+    expect(keys).toHaveLength(2);
+    for (const key of keys) {
+      expect(key.startsWith(`ratelimit:${expectedHash}:post:`)).toBe(true);
+      expect(key.includes('198.51.100.7')).toBe(false); // never plaintext
+    }
+    // Exactly one minute and one hour bucket for the same request.
+    expect(keys.filter((k) => k.includes(':m')).length).toBe(1);
+    expect(keys.filter((k) => k.includes(':h')).length).toBe(1);
   });
 });
 
@@ -350,7 +488,8 @@ describe('GET /health (ТЗ §5.6)', () => {
       putBurnMarker: (...a) => base.putBurnMarker(...a),
       getBurnMarker: (...a) => base.getBurnMarker(...a),
       destroyDrop: (...a) => base.destroyDrop(...a),
-      hitRateLimit: (...a) => base.hitRateLimit(...a),
+      hitRateLimit: (...a) => base.hitRateLimit(...(a as [string, number])),
+      dbsize: async () => null,
       ping: async () => false,
     };
     const app = createApp(deps(dead));

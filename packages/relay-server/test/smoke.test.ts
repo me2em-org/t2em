@@ -49,9 +49,18 @@ describe('InMemoryRelayStorage', () => {
 
   it('counts rate-limit hits within the 60 s window', async () => {
     const storage = new InMemoryRelayStorage();
-    expect(await storage.hitRateLimit('ip:1:0')).toBe(1);
-    expect(await storage.hitRateLimit('ip:1:0')).toBe(2);
+    expect(await storage.hitRateLimit('ip:1:0', 60)).toBe(1);
+    expect(await storage.hitRateLimit('ip:1:0', 60)).toBe(2);
     expect(RATE_LIMIT_WINDOW_SECONDS).toBe(60);
+  });
+
+  it('counts live keys for the DBSIZE guard (§5.1)', async () => {
+    const storage = new InMemoryRelayStorage();
+    expect(await storage.dbsize()).toBe(0);
+    await storage.putDrop('abc', '{"v":1}', 900);
+    await storage.putDeleteTokenHash('abc', 'a'.repeat(64), 900);
+    await storage.hitRateLimit('ip:1:0', 60);
+    expect(await storage.dbsize()).toBe(3);
   });
 });
 

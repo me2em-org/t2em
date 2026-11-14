@@ -62,12 +62,28 @@ export interface RelayStorage {
   ping(): Promise<boolean>;
 
   /**
-   * Increment the per-minute rate-limit counter for an already-hashed
-   * bucket key (`ratelimit:{ip_hash}:{minute}`) and return the new
-   * counter value. First increment sets EX 60 (ТЗ §6.1).
+   * Increment the fixed-window rate-limit counter for an
+   * already-hashed bucket key (`ratelimit:{ip_hash}:{endpoint}:{window}`)
+   * and return the new counter value. First increment sets
+   * EX {windowSeconds} (ТЗ §6.1).
    */
-  hitRateLimit(bucketKey: string): Promise<number>;
+  hitRateLimit(bucketKey: string, windowSeconds: number): Promise<number>;
+
+  /**
+   * Total number of live keys in the backing store — the DBSIZE-based
+   * global active-drops guard (ТЗ §5.1; deliberate deviation from the
+   * §6.1 INCR/DECR counter, which leaks on natural TTL expiry: Redis
+   * never decrements an expired key's counter).
+   *
+   * DBSIZE is O(1) on both Upstash REST and Redis 7. Returns `null`
+   * when the backend cannot answer — the caller then skips the global
+   * check (fail-open; a broken store fails the POST itself anyway).
+   */
+  dbsize(): Promise<number | null>;
 }
 
-/** Seconds a rate-limit counter lives (ТЗ §6.1: `EX 60`). */
+/** Seconds a per-minute rate-limit counter lives (ТЗ §6.1: `EX 60`). */
 export const RATE_LIMIT_WINDOW_SECONDS = 60;
+
+/** Seconds an hourly (POST /drop) rate-limit counter lives (ТЗ §5.1). */
+export const RATE_LIMIT_HOUR_WINDOW_SECONDS = 3600;
