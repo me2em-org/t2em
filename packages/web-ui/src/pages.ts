@@ -151,3 +151,98 @@ export function renderNotFoundPage(): string {
 </html>
 `;
 }
+
+/**
+ * `GET /for-agents` — static guide for LLM agents / automation (no
+ * drop interaction, safe to fetch repeatedly). The #1 failure mode
+ * observed in the wild: an agent fetches the `/s/:id` HTML page, which
+ * consumes the drop (burn-after-read) and still yields nothing
+ * readable — the agent cannot run the page's decrypting JavaScript.
+ * This page teaches the API-first path instead. CSP discipline: no
+ * `<script>` at all.
+ */
+export function renderAgentsPage(): string {
+  return `${head('t2em — guide for AI agents')}
+<body>
+<header>
+  <h1><a href="/">t2em</a></h1>
+  <p class="tagline">Zero-knowledge one-time secrets — how to consume a drop programmatically.</p>
+</header>
+<main>
+<section class="card">
+  <h2>Read this first</h2>
+  <p>t2em links are <strong>one-time</strong>: <code>burn_after_reading</code> defaults to <strong>true</strong>, so the first successful GET destroys the encrypted envelope (TTL fallback is 60&ndash;900&nbsp;seconds). If you are an LLM agent with a fetch tool, <strong>do not open the <code>/s/&lt;id&gt;</code> HTML page</strong> — that GET consumes the drop, and you cannot execute the page's JavaScript anyway. Use the API path below: one GET, then decrypt locally.</p>
+  <p>This page is static and safe to fetch as many times as you like.</p>
+</section>
+
+<section class="card">
+  <h2>1. Fetch the envelope (exactly one GET)</h2>
+<pre><code>curl -s https://t2em.com/api/v1/drop/&lt;id&gt;
+# → 200 JSON: {"v":1,"mode":"sym","ciphertext":"…","iv":"…"}   (Mode B)
+#              {"v":1,"mode":"x25519","ciphertext":"…","iv":"…","ephemeralPubKey":"…"}
+# → 404 after: already read / expired / never existed (identical body — anti-enumeration)</code></pre>
+  <p>Envelope v1: fields are base64url without padding. There is no plaintext metadata: the relay cannot tell you anything else about the drop.</p>
+</section>
+
+<section class="card">
+  <h2>2. Decrypt locally — the key never touches the server</h2>
+  <ul>
+    <li><strong>Mode B</strong> (<code>mode:"sym"</code>): the key is the URL part after <code>#</code> (43 base64url chars = 32 bytes). Browsers never send fragments; neither should you. If your tool stripped the <code>#…</code> part, ask the sender for the full link — it is unrecoverable.</li>
+    <li><strong>Mode A</strong> (<code>mode:"x25519"</code>): you need the recipient X25519 private key (a §8.2 keyfile). Sender fingerprints are 16 chars — verify them out-of-band.</li>
+    <li>Use the SDK below. Do <strong>not</strong> hand-roll HKDF/AES-GCM from the spec — the constants are frozen (§4.5) and a mistake fails as <code>DECRYPTION_FAILED</code> on an already-consumed drop.</li>
+  </ul>
+</section>
+
+<section class="card">
+  <h2>3. Python SDK (recommended for agents with a sandbox)</h2>
+<pre><code>pip install "t2em @ git+https://github.com/me2em-org/t2em#subdirectory=python-sdk"</code></pre>
+<pre><code>import json, urllib.request
+from t2em import unpack_drop, validate_envelope
+
+URL = "https://t2em.com/s/&lt;id&gt;#&lt;key&gt;"        # the whole link, # included
+drop_id, _, sym_key = URL.partition("#")
+drop_id = drop_id.rsplit("/", 1)[-1]
+
+with urllib.request.urlopen("https://t2em.com/api/v1/drop/" + drop_id) as r:
+    envelope = validate_envelope(json.load(r))   # exactly ONE GET — burns the drop
+
+print(unpack_drop(envelope, {"mode": "sym", "sym_key": sym_key}).decode("utf-8"))</code></pre>
+</section>
+
+<section class="card">
+  <h2>4. CLI (Node ≥ 22.6 + pnpm 10, from source)</h2>
+<pre><code>git clone https://github.com/me2em-org/t2em.git &amp;&amp; cd t2em &amp;&amp; corepack enable &amp;&amp; pnpm install &amp;&amp; pnpm build
+node packages/cli/dist/main.js pull "&lt;whole-url-including-#key&gt;" --newline</code></pre>
+  <p>The CLI also does <code>push</code> (Mode A/B), <code>keygen</code> (§8.2 keyfile) and <code>delete</code>.</p>
+</section>
+
+<section class="card">
+  <h2>5. MCP server (agents with MCP clients)</h2>
+  <p>Six tools: <code>t2em_keygen</code>, <code>t2em_push</code>, <code>t2em_pull</code> (returns a <code>sec_…</code> handle — the plaintext stays in the in-process vault, never in the conversation), <code>t2em_http_request</code> (SSRF-guarded <code>{{sec_…}}</code> substitution), <code>t2em_wipe_secret</code>, <code>t2em_list_secrets</code>.</p>
+<pre><code>{
+  "mcpServers": {
+    "t2em": {
+      "command": "node",
+      "args": ["/path/to/t2em/packages/mcp-server/dist/main.js"]
+    }
+  }
+}</code></pre>
+</section>
+
+<section class="card">
+  <h2>6. Error codes (branch on codes, never on message text)</h2>
+  <table>
+    <tr><th>code</th><th>meaning</th></tr>
+    <tr><td>UNSUPPORTED_VERSION</td><td>envelope <code>v</code> is not 1</td></tr>
+    <tr><td>MALFORMED</td><td>envelope/keyfile shape invalid, incl. cross-mode mismatch</td></tr>
+    <tr><td>INVALID_LENGTH</td><td>wrong key/IV/salt length</td></tr>
+    <tr><td>INVALID_IV</td><td>IV rejected</td></tr>
+    <tr><td>DECRYPTION_FAILED</td><td>wrong key or corrupted ciphertext — the drop is already consumed by then; ask for a new link</td></tr>
+  </table>
+  <p>HTTP surface: <code>429</code> = rate limited (honor <code>Retry-After</code>, per-IP buckets exist on both create and read); <code>404</code> bodies never distinguish missing/expired/consumed. Protocol reference: <a href="https://github.com/me2em-org/t2em/blob/main/docs/TZ_t2em.md">docs/TZ_t2em.md</a>.</p>
+</section>
+</main>
+</body>
+</html>
+`;
+}

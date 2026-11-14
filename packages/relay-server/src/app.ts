@@ -37,6 +37,7 @@ import { T2EM_RELAY_VERSION } from './version.js';
 import {
   UI_ASSETS,
   WEB_UI_CSP,
+  renderAgentsPage,
   renderHomePage,
   renderNotFoundPage,
   renderOpenPage,
@@ -390,6 +391,12 @@ export function createApp(deps: AppDeps): Hono {
   app.get('/', (c) => {
     c.header('Content-Security-Policy', WEB_UI_CSP);
     return c.html(renderHomePage());
+  });
+
+  /** Static guide for LLM agents — no drop interaction, repeat-safe. */
+  app.get('/for-agents', (c) => {
+    c.header('Content-Security-Policy', WEB_UI_CSP);
+    return c.html(renderAgentsPage());
   });
 
   /** Static same-origin assets (CSP: script-src/style-src 'self'). */

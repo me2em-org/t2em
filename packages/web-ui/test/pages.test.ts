@@ -8,7 +8,7 @@
 import { describe, expect, it } from 'vitest';
 import { UI_ASSETS, UI_JS } from '../src/assets.js';
 import { WEB_UI_CSP } from '../src/index.js';
-import { renderHomePage, renderNotFoundPage, renderOpenPage } from '../src/pages.js';
+import { renderAgentsPage, renderHomePage, renderNotFoundPage, renderOpenPage } from '../src/pages.js';
 import type { Envelope } from '@t2em/protocol';
 
 function symEnvelope(ciphertext = 'A'.repeat(64)): Envelope {
@@ -101,5 +101,23 @@ describe('UI assets (CSP discipline)', () => {
     expect(WEB_UI_CSP).toBe(
       "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'",
     );
+  });
+});
+
+describe('renderAgentsPage (/for-agents, repeat-safe static guide)', () => {
+  const html = renderAgentsPage();
+
+  it('teaches the API path and warns about the /s/:id burn trap', () => {
+    expect(html).toContain('api/v1/drop');
+    expect(html).toContain('burn');
+    expect(html).toContain('unpack_drop');
+    expect(html).toContain('validate_envelope');
+    expect(html).toContain('Retry-After');
+    expect(html).toContain('DECRYPTION_FAILED');
+  });
+
+  it('carries no script tag at all (CSP discipline, pure static text)', () => {
+    expect(html).not.toContain('<script');
+    expect(html).toContain('id&gt;#&lt;key&gt;'); // snippets are HTML-escaped
   });
 });
