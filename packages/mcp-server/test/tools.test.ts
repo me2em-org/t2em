@@ -6,13 +6,16 @@
  * Covers the §8.4 contract end-to-end: keygen → push → pull →
  * http_request substitution → wipe, plus the SSRF/error paths.
  */
+import { mkdtempSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { createApp, InMemoryRelayStorage } from '@t2em/relay-server';
 import { generateX25519KeyPair } from '@me2em/crypto';
-import { packDropAsym } from '@t2em/protocol';
+import { b64uEncode, fingerprintPubKeyB64u, packDropAsym } from '@t2em/protocol';
 import { createT2emServer } from '../src/tools.js';
 import { InMemorySecretVault } from '../src/vault.js';
 import { RelayClient, type FetchLike } from '../src/relay.js';
@@ -268,5 +271,66 @@ describe('t2em MCP server over the real relay app (ТЗ §8.4)', () => {
     const pulled = await call(rig, 't2em_pull', { url: pushed.json.url });
     expect(pulled.isError).toBe(true);
     expect(pulled.text).toMatch(/404/);
+  });
+});
+
+describe('t2em_pull keyfile_path (§8.2 keyfile in MCP)', () => {
+  it('Mode A journey: push to a pubkey → pull with keyfile_path lands in the vault', async () => {
+    const rig = await makeRig();
+    const pair = generateX25519KeyPair();
+    const pubB64u = b64uEncode(pair.publicKey);
+    const dir = mkdtempSync(join(tmpdir(), 't2em-mcp-keys-'));
+    const keyPath = join(dir, 'agent.key');
+    // §8.2 current format with a verified fingerprint.
+    writeFileSync(
+      keyPath,
+      JSON.stringify({
+        version: 1,
+        type: 'x25519',
+        privateKey: b64uEncode(pair.privateKey),
+        publicKey: pubB64u,
+        createdAt: '2026-11-14T10:00:00Z',
+        fingerprint: await fingerprintPubKeyB64u(pubB64u),
+      }),
+    );
+
+    const pushed = await call(rig, 't2em_push', { secret: 'keyfile-journey-secret', recipient_pubkey: pubB64u });
+    expect(pushed.isError).toBeFalsy();
+    expect(pushed.json.mode).toBe('x25519');
+
+    const pulled = await call(rig, 't2em_pull', { url: pushed.json.url, keyfile_path: keyPath });
+    expect(pulled.isError).toBeFalsy();
+    expect(pulled.json.secret_handle).toMatch(HANDLE);
+    expect(pulled.json.byte_length).toBe('keyfile-journey-secret'.length);
+  });
+
+  it('keyfile_path on a sym envelope fails with a mode mismatch; spliced fingerprint fails closed with the §4.5 code', async () => {
+    const rig = await makeRig();
+
+    const pushed = await call(rig, 't2em_push', { secret: 'sym-secret' });
+    const badMode = await call(rig, 't2em_pull', { url: pushed.json.url, keyfile_path: '/tmp/whatever.key' });
+    expect(badMode.isError).toBe(true);
+    expect(badMode.text).toContain("'sym', but a Mode A keyfile was given");
+
+    const dir = mkdtempSync(join(tmpdir(), 't2em-mcp-keys-'));
+    const keyPath = join(dir, 'spliced.key');
+    writeFileSync(
+      keyPath,
+      JSON.stringify({
+        version: 1,
+        type: 'x25519',
+        privateKey: 'A'.repeat(43),
+        publicKey: 'A'.repeat(43),
+        createdAt: '2026-11-14T10:00:00Z',
+        fingerprint: '0'.repeat(16),
+      }),
+    );
+    const sealed = await call(rig, 't2em_push', {
+      secret: 'x',
+      recipient_pubkey: b64uEncode(generateX25519KeyPair().publicKey),
+    });
+    const spliced = await call(rig, 't2em_pull', { url: sealed.json.url, keyfile_path: keyPath });
+    expect(spliced.isError).toBe(true);
+    expect(spliced.text).toMatch(/^MALFORMED: /); // §4.5 unified error surface
   });
 });

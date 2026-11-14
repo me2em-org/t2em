@@ -9,9 +9,32 @@
 Handle → SubHandle, Ed25519-производные децентрализованные личности).
 
 - **Нормативные документы:** [`docs/TZ_t2em.md`](./docs/TZ_t2em.md)
-  (v2.0 Final), индекс — [`docs/README.md`](./docs/README.md).
+  (v2.0 Final) и [`docs/TZ_t2em_v2.1.md`](./docs/TZ_t2em_v2.1.md)
+  (v2.1 — уточнения по итогам security-review), индекс —
+  [`docs/README.md`](./docs/README.md).
 - **Крипто-ядро:** примитивы `@me2em/crypto` (v1.1.0-rc.2); прямое
   использование `@noble/*` в прикладном коде запрещено (ТЗ §4.1).
+
+## Клиентские контракты (ТЗ v2.1)
+
+- **Fingerprint** — `base64url(sha256(pubkey))[0..16]`, **16 символов
+  = 96 бит** (§4.2.1): CLI/MCP выводят его в stderr/диагностику,
+  стороны сверяют вне канала перед Mode A.
+- **Keyfile** (`t2em-cli keygen --out`) — формат §8.2 «уточнено»:
+  `version/type/privateKey/publicKey/createdAt/fingerprint(16)`;
+  fingerprint самоверифицируется при загрузке (сплайсинг → отказ),
+  legacy-формат `v`/`kind` читается для совместимости. Валидация —
+  одна на всех клиентов: `parseKeyFileJson` в `@t2em/protocol`.
+- **Фасад §3.6** — интеграторы шифруют через `packDrop`/`unpackDrop`
+  (TS: `@t2em/protocol`, Python: `t2em.pack_drop`/`t2em.unpack_drop`);
+  конверт, открытый «чужим» режимом, отклоняется (`MALFORMED`, §4.5).
+- **Ошибки** — единая поверхность `КОД: сообщение` по таксономии §4.5
+  (`UNSUPPORTED_VERSION` / `MALFORMED` / `INVALID_LENGTH` /
+  `INVALID_IV` / `DECRYPTION_FAILED`): CLI stderr и MCP `isError`
+  форматируются одним модулем (`formatErrorLine`).
+- **Тест-векторы** — `vectors/t2em-drop.v1.json`: 25 векторов + 2
+  fingerprint-пина (positive с Ed25519-конверсией и подписью
+  отправителя, negative, cross-mode, 64 KB), бит-в-бит TS↔Python.
 
 ## Как это работает
 
@@ -76,6 +99,7 @@ node packages/relay-server/dist/node.js   # http://localhost:8787/healthz
 | 4 | Python SDK (PyCA `cryptography`), bit-compat с векторами | **готово** |
 | 5 | `@t2em/mcp-server` (6 tools, SSRF-guard, InMemorySecretVault) | **готово** |
 | 6 | Приёмка по ТЗ §17, security review, прод | — |
+| 7 | Доработка по ТЗ v2.1: P0 abuse-limits (§5.1/§5.2), P1 криптоконтракт (fingerprint 16, фасад §3.6, векторы, keyfile §8.2), P2 error surface + keyfile в MCP + доки | **готово** |
 
 ## License
 

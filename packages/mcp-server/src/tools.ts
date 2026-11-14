@@ -12,14 +12,17 @@
  */
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
+import { readFileSync } from 'node:fs';
 import {
   b64uDecodeStrict,
   b64uEncode,
   decodeUtf8,
   encodeUtf8,
   fingerprintPubKeyB64u,
+  formatErrorLine,
   packDropAsym,
   packDropSym,
+  parseKeyFileJson,
   unpackDropAsym,
   unpackDropSym,
   validateEnvelope,
@@ -60,9 +63,11 @@ function errorContent(error: unknown): { content: [{ type: 'text'; text: string 
       isError: true,
     };
   }
-  const message = error instanceof Error ? error.message : String(error);
+  // §4.5 unified surface: protocol/crypto failures carry their
+  // taxonomy code (`MALFORMED: …`, `DECRYPTION_FAILED: …`) — the same
+  // formatting contract as the CLI's describeError.
   // Zero-logging: the message may carry a status/code, never a secret.
-  return { content: [{ type: 'text', text: message }], isError: true };
+  return { content: [{ type: 'text', text: formatErrorLine(error) }], isError: true };
 }
 
 /** `{{sec_uuid}}` occurrences in a template string. */
@@ -156,24 +161,50 @@ export function createT2emServer(options: T2emServerOptions = {}): McpServer {
     't2em_pull',
     {
       description:
-        'Fetch and decrypt a drop, then store the plaintext in the in-process vault. Returns a secret_handle (sec_…) to use with t2em_http_request / t2em_wipe_secret — the secret value itself is NEVER returned to the LLM context. Mode B urls need their #fragment; Mode A urls need a keypair from t2em_keygen.',
+        'Fetch and decrypt a drop, then store the plaintext in the in-process vault. Returns a secret_handle (sec_…) to use with t2em_http_request / t2em_wipe_secret — the secret value itself is NEVER returned to the LLM context. Mode B urls need their #fragment; Mode A urls need a keypair from t2em_keygen or a keyfile_path (§8.2 X25519 keyfile, current or legacy format).',
       inputSchema: {
         url: z.string().describe('Drop URL, e.g. https://t2em.com/s/<id>#<key> (Mode B) or https://t2em.com/s/<id> (Mode A).'),
+        keyfile_path: z.string().optional()
+          .describe('Path to an X25519 keyfile (§8.2 JSON — current or legacy v/kind format) for Mode A pulls; alternative to the vault keypair. The file must self-verify: its fingerprint field must match its public key.'),
       },
     },
-    async ({ url }) => {
+    async ({ url, keyfile_path }) => {
       try {
         const parts = parseShareUrl(url);
         const envelope = validateEnvelope(await relay.consume(parts.id));
 
         let plaintext: Uint8Array;
         if (envelope.mode === 'sym') {
+          if (keyfile_path !== undefined) {
+            throw new Error("relay envelope is 'sym', but a Mode A keyfile was given — drop the keyfile_path or use a #fragment url");
+          }
           if (!parts.fragment) throw new Error('Mode B url carries no #fragment — key is missing');
           plaintext = await unpackDropSym(envelope, parts.fragment);
         } else {
-          const key = vault.latestPrivKey();
-          if (!key) throw new Error('no keypair in vault — call t2em_keygen first');
-          plaintext = await unpackDropAsym(envelope, key.bytes);
+          let privKey: Uint8Array;
+          let fromKeyfile = false;
+          if (keyfile_path !== undefined) {
+            let payload: unknown;
+            try {
+              payload = JSON.parse(readFileSync(keyfile_path, 'utf8'));
+            } catch {
+              throw new Error(`keyfile is not valid JSON: ${keyfile_path}`);
+            }
+            // §8.2 validation is shared with the CLI (parseKeyFileJson):
+            // shape + fingerprint self-verification, fails closed.
+            const parsed = await parseKeyFileJson(payload);
+            privKey = parsed.privateKey;
+            fromKeyfile = true;
+          } else {
+            const key = vault.latestPrivKey();
+            if (!key) throw new Error('no keypair in vault — call t2em_keygen first, or pass keyfile_path');
+            privKey = key.bytes;
+          }
+          try {
+            plaintext = await unpackDropAsym(envelope, privKey);
+          } finally {
+            if (fromKeyfile) secureWipe(privKey); // §4.4; vault bytes stay vault-owned
+          }
         }
         try {
           const handle = vault.put(plaintext, 'secret');
